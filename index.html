@@ -28,6 +28,41 @@
             margin-bottom: 25px;
         }
 
+        /* ----- Tab Navigation ----- */
+        .tab-nav {
+            display: flex;
+            width: 100%;
+            max-width: 500px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .tab-nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #6c757d;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .tab-nav-item.active {
+            background-color: #007BFF;
+            color: #fff;
+        }
+
+        /* ----- Page Content ----- */
+        .page-content {
+            display: none;
+        }
+        .page-content.active {
+            display: block;
+        }
+        
         h1, h2 {
             text-align: center;
             color: #1a1a1a;
@@ -151,12 +186,6 @@
             width: 100%;
             max-width: 500px;
         }
-
-        .history-section h2 {
-            text-align: center;
-            color: #1a1a1a;
-            margin-bottom: 20px;
-        }
         
         #searchInput {
             width: 100%;
@@ -203,77 +232,88 @@
 </head>
 <body>
 
-<div class="container">
-    <h1>每日里程與油耗記錄</h1>
+<div class="tab-nav">
+    <div class="tab-nav-item active" data-page="daily">每日記錄</div>
+    <div class="tab-nav-item" data-page="monthly">每月總結</div>
+    <div class="tab-nav-item" data-page="history">所有紀錄</div>
+</div>
 
-    <div class="input-group">
-        <label for="recordDate">日期:</label>
-        <input type="date" id="recordDate">
-    </div>
+<div id="page-daily" class="page-content active">
+    <div class="container">
+        <h1>每日里程與油耗記錄</h1>
 
-    <div class="input-group">
-        <label for="recordName">紀錄名稱 (選填):</label>
-        <input type="text" id="recordName" placeholder="例如: 出差、週末出遊">
-    </div>
+        <div class="input-group">
+            <label for="recordDate">日期:</label>
+            <input type="date" id="recordDate">
+        </div>
 
-    <div class="quick-select-buttons">
-        <button data-distance="60" data-name="桃園+台北+桃園">桃園+台北+桃園 (60 公里)</button>
-        <button data-distance="185" data-name="桃園+台北+竹南+桃園">桃+北+竹南+桃 (185 公里)</button>
-        <button data-distance="245" data-name="桃園+台北+竹南+台北+桃園">桃+北+竹南+北+桃 (245 公里)</button>
-        <button data-distance="165" data-name="桃園+竹北+竹南+台北">桃+竹北+竹南+北 (165 公里)</button>
-    </div>
+        <div class="input-group">
+            <label for="recordName">紀錄名稱 (選填):</label>
+            <input type="text" id="recordName" placeholder="例如: 出差、週末出遊">
+        </div>
 
-    <div class="input-group">
-        <label for="dailyDistance">本日里程 (公里):</label>
-        <input type="number" id="dailyDistance" placeholder="請選擇或手動輸入" min="0" step="0.1">
-    </div>
-    
-    <div class="input-group">
-        <label for="fuelEfficiency">車輛油耗 (公里/公升):</label>
-        <input type="number" id="fuelEfficiency" placeholder="例如: 12" min="0" step="0.1">
-    </div>
+        <div class="quick-select-buttons">
+            <button data-distance="60" data-name="桃園+台北+桃園">桃+北+桃 (60 公里)</button>
+            <button data-distance="185" data-name="桃園+台北+竹南+桃園">桃+北+竹南+桃 (185 公里)</button>
+            <button data-distance="245" data-name="桃園+台北+竹南+台北+桃園">桃+北+竹南+北+桃 (245 公里)</button>
+            <button data-distance="165" data-name="桃園+竹北+竹南+台北">桃+竹北+竹南+北 (165 公里)</button>
+        </div>
 
-    <div class="result" id="results">
-        <p>請輸入您的里程與油耗資訊，系統會自動計算。</p>
-    </div>
+        <div class="input-group">
+            <label for="dailyDistance">本日里程 (公里):</label>
+            <input type="number" id="dailyDistance" placeholder="請選擇或手動輸入" min="0" step="0.1">
+        </div>
+        
+        <div class="input-group">
+            <label for="fuelEfficiency">車輛油耗 (公里/公升):</label>
+            <input type="number" id="fuelEfficiency" placeholder="例如: 12" min="0" step="0.1">
+        </div>
 
-    <div class="buttons">
-        <button id="saveRecordBtn">儲存紀錄</button>
+        <div class="result" id="results">
+            <p>請輸入您的里程與油耗資訊，系統會自動計算。</p>
+        </div>
+
+        <div class="buttons">
+            <button id="saveRecordBtn">儲存紀錄</button>
+        </div>
     </div>
 </div>
 
-<div class="container">
-    <h1>每月總結與里程追蹤</h1>
-    <div class="input-group">
-        <label for="totalMonthlyMileage">每月總里程額度 (公里):</label>
-        <input type="number" id="totalMonthlyMileage" placeholder="例如: 500" min="0" step="1">
-    </div>
-    <div class="input-group">
-        <label for="fuelCostPerLiter">每公升油價 (新台幣):</label>
-        <input type="number" id="fuelCostPerLiter" placeholder="例如: 30.5" min="0" step="0.1">
-    </div>
+<div id="page-monthly" class="page-content">
+    <div class="container">
+        <h1>每月總結與里程追蹤</h1>
+        <div class="input-group">
+            <label for="totalMonthlyMileage">每月總里程額度 (公里):</label>
+            <input type="number" id="totalMonthlyMileage" placeholder="例如: 500" min="0" step="1">
+        </div>
+        <div class="input-group">
+            <label for="fuelCostPerLiter">每公升油價 (新台幣):</label>
+            <input type="number" id="fuelCostPerLiter" placeholder="例如: 30.5" min="0" step="0.1">
+        </div>
 
-    <div class="summary">
-        <h2>本月總結</h2>
-        <p><strong>本月總里程:</strong> <span id="monthlyTotalDistance">0</span> 公里</p>
-        <p><strong>本月總油耗:</strong> <span id="monthlyTotalFuel">0</span> 公升</p>
-        <hr>
-        <p><strong>剩餘里程:</strong> <span id="remainingMileage">0</span> 公里</p>
-        <p><strong>省下油錢:</strong> <span id="savedFuelCost">0</span> 新台幣</p>
-    </div>
-    
-    <div class="buttons">
-        <button id="clearDataBtn" class="clear-btn">清除所有記錄</button>
+        <div class="summary">
+            <h2>本月總結</h2>
+            <p><strong>本月總里程:</strong> <span id="monthlyTotalDistance">0</span> 公里</p>
+            <p><strong>本月總油耗:</strong> <span id="monthlyTotalFuel">0</span> 公升</p>
+            <hr>
+            <p><strong>剩餘里程:</strong> <span id="remainingMileage">0</span> 公里</p>
+            <p><strong>省下油錢:</strong> <span id="savedFuelCost">0</span> 新台幣</p>
+        </div>
+        
+        <div class="buttons">
+            <button id="clearDataBtn" class="clear-btn">清除所有記錄</button>
+        </div>
     </div>
 </div>
 
-
-<div class="history-section">
-    <h2>所有紀錄</h2>
-    <input type="text" id="searchInput" placeholder="搜尋日期或名稱 (例如: 2025-09-03 或 出差)...">
-    <ul id="records-list">
-        <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
-    </ul>
+<div id="page-history" class="page-content">
+    <div class="history-section">
+        <h2>所有紀錄</h2>
+        <input type="text" id="searchInput" placeholder="搜尋日期或名稱 (例如: 2025-09-03 或 出差)...">
+        <ul id="records-list">
+            <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
+        </ul>
+    </div>
 </div>
 
 <script>
@@ -295,6 +335,8 @@
     const savedFuelCostSpan = document.getElementById('savedFuelCost');
 
     const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
+    const tabNavItems = document.querySelectorAll('.tab-nav-item');
+    const pageContents = document.querySelectorAll('.page-content');
 
     let allRecords = [];
 
@@ -424,6 +466,19 @@
         }
     }
 
+    // New function to handle page switching
+    function showPage(pageId) {
+        pageContents.forEach(page => {
+            page.classList.remove('active');
+        });
+        document.getElementById(pageId).classList.add('active');
+
+        tabNavItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`.tab-nav-item[data-page="${pageId.split('-')[1]}"]`).classList.add('active');
+    }
+
     // Event listeners
     dailyDistanceInput.addEventListener('input', calculateDaily);
     fuelEfficiencyInput.addEventListener('input', calculateDaily);
@@ -433,7 +488,6 @@
     totalMonthlyMileageInput.addEventListener('input', calculateMonthlySummary);
     fuelCostPerLiterInput.addEventListener('input', calculateMonthlySummary);
     
-    // Add new event listeners for quick select buttons
     quickSelectButtons.forEach(button => {
         button.addEventListener('click', () => {
             const distance = button.dataset.distance;
@@ -441,6 +495,12 @@
             dailyDistanceInput.value = distance;
             recordNameInput.value = name;
             calculateDaily();
+        });
+    });
+
+    tabNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+            showPage('page-' + item.dataset.page);
         });
     });
 
