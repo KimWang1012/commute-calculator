@@ -34,7 +34,7 @@
             margin-bottom: 25px;
             font-size: 24px;
         }
-        
+
         .input-group {
             margin-bottom: 20px;
         }
@@ -59,6 +59,28 @@
         .input-group input:focus {
             border-color: #007BFF;
             outline: none;
+        }
+
+        .quick-select-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .quick-select-buttons button {
+            flex: 1 1 calc(50% - 10px);
+            padding: 10px 5px;
+            background-color: #f0f4f7;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .quick-select-buttons button:hover {
+            background-color: #e2e8ec;
         }
 
         .result, .summary {
@@ -136,7 +158,7 @@
             margin-bottom: 20px;
         }
         
-        #dateInput, #searchInput {
+        #searchInput {
             width: 100%;
             padding: 10px;
             margin-bottom: 15px;
@@ -144,9 +166,6 @@
             border-radius: 8px;
             box-sizing: border-box;
             font-size: 16px;
-        }
-        #dateInput {
-            margin-bottom: 0;
         }
 
         #records-list {
@@ -193,8 +212,20 @@
     </div>
 
     <div class="input-group">
+        <label for="recordName">紀錄名稱 (選填):</label>
+        <input type="text" id="recordName" placeholder="例如: 出差、週末出遊">
+    </div>
+
+    <div class="quick-select-buttons">
+        <button data-distance="60">桃園+台北+桃園 (60 公里)</button>
+        <button data-distance="185">桃+北+竹南+桃 (185 公里)</button>
+        <button data-distance="245">桃+北+竹南+北+桃 (245 公里)</button>
+        <button data-distance="165">桃+竹北+竹南+北 (165 公里)</button>
+    </div>
+
+    <div class="input-group">
         <label for="dailyDistance">本日里程 (公里):</label>
-        <input type="number" id="dailyDistance" placeholder="例如: 30" min="0" step="0.1">
+        <input type="number" id="dailyDistance" placeholder="請選擇或手動輸入" min="0" step="0.1">
     </div>
     
     <div class="input-group">
@@ -239,7 +270,7 @@
 
 <div class="history-section">
     <h2>所有紀錄</h2>
-    <input type="text" id="searchInput" placeholder="搜尋日期 (例如: 2025-09)...">
+    <input type="text" id="searchInput" placeholder="搜尋日期或名稱 (例如: 2025-09-03 或 出差)...">
     <ul id="records-list">
         <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
     </ul>
@@ -247,6 +278,7 @@
 
 <script>
     const recordDateInput = document.getElementById('recordDate');
+    const recordNameInput = document.getElementById('recordName');
     const dailyDistanceInput = document.getElementById('dailyDistance');
     const fuelEfficiencyInput = document.getElementById('fuelEfficiency');
     const resultsDiv = document.getElementById('results');
@@ -261,6 +293,8 @@
     const monthlyTotalFuelSpan = document.getElementById('monthlyTotalFuel');
     const remainingMileageSpan = document.getElementById('remainingMileage');
     const savedFuelCostSpan = document.getElementById('savedFuelCost');
+
+    const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
 
     let allRecords = [];
 
@@ -297,8 +331,10 @@
 
     // Render records to the page
     function renderRecords(query = '') {
+        const lowerCaseQuery = query.toLowerCase();
         const filteredRecords = allRecords.filter(record => 
-            record.date.startsWith(query) || (query.toLowerCase() === JSON.stringify(record).toLowerCase().includes(query.toLowerCase()))
+            record.date.toLowerCase().includes(lowerCaseQuery) ||
+            (record.name && record.name.toLowerCase().includes(lowerCaseQuery))
         );
 
         recordsList.innerHTML = '';
@@ -307,7 +343,7 @@
             return;
         }
 
-        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date descending
+        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         filteredRecords.forEach(record => {
             const listItem = document.createElement('li');
@@ -315,6 +351,7 @@
             const dailyFuel = (record.dailyDistance / record.fuelEfficiency).toFixed(2);
             listItem.innerHTML = `
                 <p class="date"><strong>日期:</strong> ${record.date}</p>
+                <p><strong>名稱:</strong> ${record.name || '無'}</p>
                 <p><strong>本日里程:</strong> ${record.dailyDistance} 公里</p>
                 <p><strong>車輛油耗:</strong> ${record.fuelEfficiency} 公里/公升</p>
                 <p><strong>本日油耗:</strong> ${dailyFuel} 公升</p>
@@ -328,7 +365,7 @@
         const totalMonthlyMileage = parseFloat(totalMonthlyMileageInput.value) || 0;
         const fuelCostPerLiter = parseFloat(fuelCostPerLiterInput.value) || 0;
 
-        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+        const currentMonth = new Date().toISOString().slice(0, 7);
         const monthlyRecords = allRecords.filter(record => record.date.startsWith(currentMonth));
         
         let totalDistance = 0;
@@ -340,17 +377,18 @@
         });
 
         const remainingMileage = Math.max(0, totalMonthlyMileage - totalDistance);
-        const savedFuelCost = remainingMileage * (1 / 15) * fuelCostPerLiter; // Approx. 15 km/L for calculation
+        const savedFuelCost = remainingMileage * (totalFuel / totalDistance) * fuelCostPerLiter;
 
         monthlyTotalDistanceSpan.textContent = totalDistance.toFixed(2);
         monthlyTotalFuelSpan.textContent = totalFuel.toFixed(2);
         remainingMileageSpan.textContent = remainingMileage.toFixed(2);
-        savedFuelCostSpan.textContent = savedFuelCost.toFixed(2);
+        savedFuelCostSpan.textContent = isNaN(savedFuelCost) ? '0' : savedFuelCost.toFixed(2);
     }
 
     // Save the current calculation as a new record
     function saveDailyRecord() {
         const date = recordDateInput.value;
+        const name = recordNameInput.value.trim();
         const distance = parseFloat(dailyDistanceInput.value);
         const efficiency = parseFloat(fuelEfficiencyInput.value);
 
@@ -359,15 +397,14 @@
             return;
         }
         
-        // Check for duplicate date
         const existingRecordIndex = allRecords.findIndex(record => record.date === date);
         if (existingRecordIndex !== -1) {
             if (!confirm('該日期已有紀錄，確定要覆蓋嗎？')) {
                 return;
             }
-            allRecords[existingRecordIndex] = { date, dailyDistance: distance, fuelEfficiency: efficiency };
+            allRecords[existingRecordIndex] = { date, name, dailyDistance: distance, fuelEfficiency: efficiency };
         } else {
-            const newRecord = { date, dailyDistance: distance, fuelEfficiency: efficiency };
+            const newRecord = { date, name, dailyDistance: distance, fuelEfficiency: efficiency };
             allRecords.push(newRecord);
         }
 
@@ -395,6 +432,14 @@
     searchInput.addEventListener('input', (e) => renderRecords(e.target.value));
     totalMonthlyMileageInput.addEventListener('input', calculateMonthlySummary);
     fuelCostPerLiterInput.addEventListener('input', calculateMonthlySummary);
+    
+    quickSelectButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const distance = button.dataset.distance;
+            dailyDistanceInput.value = distance;
+            calculateDaily();
+        });
+    });
 
     // Initial load
     window.addEventListener('load', () => {
