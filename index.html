@@ -19,6 +19,7 @@
 
         .container {
             width: 100%;
+            max-width: 500px;
             background: #fff;
             padding: 30px;
             border-radius: 12px;
@@ -57,7 +58,7 @@
         /* ----- Page Content ----- */
         .page-content {
             display: none;
-            width: 100%; /* 確保頁面內容寬度一致 */
+            width: 100%;
             max-width: 500px;
         }
         .page-content.active {
@@ -119,7 +120,7 @@
             background-color: #e2e8ec;
         }
 
-        .result, .summary {
+        .result {
             background-color: #eaf6ff;
             border-left: 5px solid #007BFF;
             padding: 20px;
@@ -127,29 +128,20 @@
             border-radius: 8px;
         }
         
-        .summary {
-            background-color: #e6f7e6;
-            border-left-color: #28a745;
-        }
-
-        .result h2, .summary h2 {
+        .result h2 {
             margin-top: 0;
             color: #0056b3;
             font-size: 20px;
             margin-bottom: 15px;
         }
         
-        .summary h2 {
-            color: #218838;
-        }
-
-        .result p, .summary p {
+        .result p {
             margin: 0 0 10px 0;
             line-height: 1.5;
             font-size: 16px;
         }
 
-        .result p strong, .summary p strong {
+        .result p strong {
             color: #333;
         }
 
@@ -211,6 +203,7 @@
             margin-bottom: 15px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             transition: transform 0.2s;
+            position: relative;
         }
         
         .record-item:hover {
@@ -228,13 +221,32 @@
             border-bottom: 1px solid #eee;
             padding-bottom: 5px;
         }
+
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            text-align: center;
+            padding: 0;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
 
 <div class="tab-nav">
     <div class="tab-nav-item active" data-page="daily">每日記錄</div>
-    <div class="tab-nav-item" data-page="monthly">每月總結</div>
     <div class="tab-nav-item" data-page="history">所有紀錄</div>
 </div>
 
@@ -279,33 +291,6 @@
     </div>
 </div>
 
-<div id="page-monthly" class="page-content">
-    <div class="container">
-        <h1>每月總結與里程追蹤</h1>
-        <div class="input-group">
-            <label for="totalMonthlyMileage">每月總里程額度 (公里):</label>
-            <input type="number" id="totalMonthlyMileage" placeholder="例如: 500" min="0" step="1">
-        </div>
-        <div class="input-group">
-            <label for="fuelCostPerLiter">每公升油價 (新台幣):</label>
-            <input type="number" id="fuelCostPerLiter" placeholder="例如: 30.5" min="0" step="0.1">
-        </div>
-
-        <div class="summary">
-            <h2>本月總結</h2>
-            <p><strong>本月總里程:</strong> <span id="monthlyTotalDistance">0</span> 公里</p>
-            <p><strong>本月總油耗:</strong> <span id="monthlyTotalFuel">0</span> 公升</p>
-            <hr>
-            <p><strong>剩餘里程:</strong> <span id="remainingMileage">0</span> 公里</p>
-            <p><strong>省下油錢:</strong> <span id="savedFuelCost">0</span> 新台幣</p>
-        </div>
-        
-        <div class="buttons">
-            <button id="clearDataBtn" class="clear-btn">清除所有記錄</button>
-        </div>
-    </div>
-</div>
-
 <div id="page-history" class="page-content">
     <div class="container">
         <div class="history-section">
@@ -314,6 +299,9 @@
             <ul id="records-list">
                 <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
             </ul>
+        </div>
+        <div class="buttons" style="justify-content: center;">
+            <button id="clearDataBtn" class="clear-btn">清除所有記錄</button>
         </div>
     </div>
 </div>
@@ -329,13 +317,6 @@
     const searchInput = document.getElementById('searchInput');
     const recordsList = document.getElementById('records-list');
     
-    const totalMonthlyMileageInput = document.getElementById('totalMonthlyMileage');
-    const fuelCostPerLiterInput = document.getElementById('fuelCostPerLiter');
-    const monthlyTotalDistanceSpan = document.getElementById('monthlyTotalDistance');
-    const monthlyTotalFuelSpan = document.getElementById('monthlyTotalFuel');
-    const remainingMileageSpan = document.getElementById('remainingMileage');
-    const savedFuelCostSpan = document.getElementById('savedFuelCost');
-
     const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
     const tabNavItems = document.querySelectorAll('.tab-nav-item');
     const pageContents = document.querySelectorAll('.page-content');
@@ -399,34 +380,10 @@
                 <p><strong>本日里程:</strong> ${record.dailyDistance} 公里</p>
                 <p><strong>車輛油耗:</strong> ${record.fuelEfficiency} 公里/公升</p>
                 <p><strong>本日油耗:</strong> ${dailyFuel} 公升</p>
+                <button class="delete-btn" data-date="${record.date}">×</button>
             `;
             recordsList.appendChild(listItem);
         });
-    }
-    
-    // Calculate and display monthly summary
-    function calculateMonthlySummary() {
-        const totalMonthlyMileage = parseFloat(totalMonthlyMileageInput.value) || 0;
-        const fuelCostPerLiter = parseFloat(fuelCostPerLiterInput.value) || 0;
-
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const monthlyRecords = allRecords.filter(record => record.date.startsWith(currentMonth));
-        
-        let totalDistance = 0;
-        let totalFuel = 0;
-        
-        monthlyRecords.forEach(record => {
-            totalDistance += record.dailyDistance;
-            totalFuel += record.dailyDistance / record.fuelEfficiency;
-        });
-
-        const remainingMileage = Math.max(0, totalMonthlyMileage - totalDistance);
-        const savedFuelCost = remainingMileage * (totalFuel / totalDistance) * fuelCostPerLiter;
-
-        monthlyTotalDistanceSpan.textContent = totalDistance.toFixed(2);
-        monthlyTotalFuelSpan.textContent = totalFuel.toFixed(2);
-        remainingMileageSpan.textContent = remainingMileage.toFixed(2);
-        savedFuelCostSpan.textContent = isNaN(savedFuelCost) ? '0' : savedFuelCost.toFixed(2);
     }
 
     // Save the current calculation as a new record
@@ -454,8 +411,16 @@
 
         saveAllRecords();
         renderRecords();
-        calculateMonthlySummary();
         alert('紀錄已儲存！');
+    }
+    
+    // Delete a single record
+    function deleteSingleRecord(date) {
+        if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
+            allRecords = allRecords.filter(record => record.date !== date);
+            saveAllRecords();
+            renderRecords();
+        }
     }
 
     // Clear all records
@@ -464,7 +429,6 @@
             allRecords = [];
             saveAllRecords();
             renderRecords();
-            calculateMonthlySummary();
         }
     }
 
@@ -487,8 +451,6 @@
     saveRecordBtn.addEventListener('click', saveDailyRecord);
     clearDataBtn.addEventListener('click', clearAllRecords);
     searchInput.addEventListener('input', (e) => renderRecords(e.target.value));
-    totalMonthlyMileageInput.addEventListener('input', calculateMonthlySummary);
-    fuelCostPerLiterInput.addEventListener('input', calculateMonthlySummary);
     
     quickSelectButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -505,6 +467,14 @@
             showPage('page-' + item.dataset.page);
         });
     });
+    
+    // Event delegation for dynamically added delete buttons
+    recordsList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-btn')) {
+            const date = e.target.dataset.date;
+            deleteSingleRecord(date);
+        }
+    });
 
     // Initial load
     window.addEventListener('load', () => {
@@ -513,7 +483,6 @@
 
         loadAllRecords();
         renderRecords();
-        calculateMonthlySummary();
     });
 </script>
 
