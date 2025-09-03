@@ -120,7 +120,7 @@
             background-color: #e2e8ec;
         }
 
-        .result, .summary {
+        .result {
             background-color: #eaf6ff;
             border-left: 5px solid #007BFF;
             padding: 20px;
@@ -128,28 +128,20 @@
             border-radius: 8px;
         }
         
-        .result h2, .summary h2 {
+        .result h2 {
             margin-top: 0;
             color: #0056b3;
             font-size: 20px;
             margin-bottom: 15px;
         }
-
-        .summary {
-            background-color: #e6f7e6;
-            border-left-color: #28a745;
-        }
-        .summary h2 {
-            color: #218838;
-        }
         
-        .result p, .summary p {
+        .result p {
             margin: 0 0 10px 0;
             line-height: 1.5;
             font-size: 16px;
         }
 
-        .result p strong, .summary p strong {
+        .result p strong {
             color: #333;
         }
 
@@ -308,12 +300,6 @@
     <div class="container">
         <div class="history-section">
             <h2>所有紀錄</h2>
-            <div class="summary">
-                <h2>本月總結</h2>
-                <p><strong>本月總里程:</strong> <span id="monthlyTotalDistance">0</span> 公里</p>
-                <p><strong>本月總油耗:</strong> <span id="monthlyTotalFuel">0</span> 公升</p>
-                <p><strong>本月總油錢:</strong> <span id="monthlyTotalCost">0</span> 新台幣</p>
-            </div>
             <input type="text" id="searchInput" placeholder="搜尋日期或名稱 (例如: 2025-09-03 或 出差)...">
             <ul id="records-list">
                 <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
@@ -324,6 +310,24 @@
         </div>
     </div>
 </div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  // 這裡貼上你從 Firebase 取得的設定程式碼
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  // 初始化 Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const dbRef = db.ref('records');
+</script>
 
 <script>
     const recordDateInput = document.getElementById('recordDate');
@@ -340,26 +344,8 @@
     const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
     const tabNavItems = document.querySelectorAll('.tab-nav-item');
     const pageContents = document.querySelectorAll('.page-content');
-    
-    // New elements for monthly summary
-    const monthlyTotalDistanceSpan = document.getElementById('monthlyTotalDistance');
-    const monthlyTotalFuelSpan = document.getElementById('monthlyTotalFuel');
-    const monthlyTotalCostSpan = document.getElementById('monthlyTotalCost');
 
-    let allRecords = [];
-
-    // Save history records to localStorage
-    function saveAllRecords() {
-        localStorage.setItem('allRecords', JSON.stringify(allRecords));
-    }
-
-    // Load history records from localStorage
-    function loadAllRecords() {
-        const storedRecords = localStorage.getItem('allRecords');
-        if (storedRecords) {
-            allRecords = JSON.parse(storedRecords);
-        }
-    }
+    // 移除本地儲存的變數，改為直接與 Firebase 互動
     
     // Calculate and display daily results
     function calculateDaily() {
@@ -382,39 +368,18 @@
         `;
     }
 
-    // Calculate and display monthly summary
-    function calculateMonthlySummary() {
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const monthlyRecords = allRecords.filter(record => record.date.startsWith(currentMonth));
-        
-        let totalDistance = 0;
-        let totalFuel = 0;
-        let totalCost = 0;
-        
-        monthlyRecords.forEach(record => {
-            totalDistance += record.dailyDistance;
-            totalFuel += record.dailyDistance / record.fuelEfficiency;
-            totalCost += (record.dailyDistance / record.fuelEfficiency) * record.fuelCostPerLiter;
-        });
-
-        monthlyTotalDistanceSpan.textContent = totalDistance.toFixed(2);
-        monthlyTotalFuelSpan.textContent = totalFuel.toFixed(2);
-        monthlyTotalCostSpan.textContent = totalCost.toFixed(2);
-    }
-
-
     // Render records to the page
-    function renderRecords(query = '') {
+    function renderRecords(records, query = '') {
+        const allRecords = records.length > 0 ? Object.values(records) : [];
         const lowerCaseQuery = query.toLowerCase();
         const filteredRecords = allRecords.filter(record => 
-            record.date.toLowerCase().includes(lowerCaseQuery) ||
+            (record.date && record.date.toLowerCase().includes(lowerCaseQuery)) ||
             (record.name && record.name.toLowerCase().includes(lowerCaseQuery))
         );
 
         recordsList.innerHTML = '';
         if (filteredRecords.length === 0) {
             recordsList.innerHTML = `<p style="text-align: center; color: #888;">${query ? '找不到符合的紀錄。' : '尚無歷史紀錄。'}</p>`;
-            calculateMonthlySummary(); // Recalculate if no records found
             return;
         }
 
@@ -436,11 +401,9 @@
             `;
             recordsList.appendChild(listItem);
         });
-
-        calculateMonthlySummary(); // Recalculate after rendering
     }
 
-    // Save the current calculation as a new record
+    // Save the current calculation as a new record to Firebase
     function saveDailyRecord() {
         const date = recordDateInput.value;
         const name = recordNameInput.value.trim();
@@ -453,37 +416,43 @@
             return;
         }
         
-        const existingRecordIndex = allRecords.findIndex(record => record.date === date);
-        if (existingRecordIndex !== -1) {
-            if (!confirm('該日期已有紀錄，確定要覆蓋嗎？')) {
-                return;
-            }
-            allRecords[existingRecordIndex] = { date, name, dailyDistance: distance, fuelEfficiency: efficiency, fuelCostPerLiter: fuelCost };
-        } else {
-            const newRecord = { date, name, dailyDistance: distance, fuelEfficiency: efficiency, fuelCostPerLiter: fuelCost };
-            allRecords.push(newRecord);
-        }
-
-        saveAllRecords();
-        renderRecords();
-        alert('紀錄已儲存！');
+        // Use the date as the unique key in Firebase
+        const recordData = { date, name, dailyDistance: distance, fuelEfficiency: efficiency, fuelCostPerLiter: fuelCost };
+        dbRef.child(date).set(recordData)
+            .then(() => {
+                alert('紀錄已儲存！');
+            })
+            .catch(error => {
+                console.error("Error writing data: ", error);
+                alert('儲存失敗，請檢查網路連線。');
+            });
     }
     
-    // Delete a single record
+    // Delete a single record from Firebase
     function deleteSingleRecord(date) {
         if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
-            allRecords = allRecords.filter(record => record.date !== date);
-            saveAllRecords();
-            renderRecords();
+            dbRef.child(date).remove()
+                .then(() => {
+                    alert('紀錄已刪除！');
+                })
+                .catch(error => {
+                    console.error("Error removing data: ", error);
+                    alert('刪除失敗，請檢查網路連線。');
+                });
         }
     }
 
-    // Clear all records
+    // Clear all records from Firebase
     function clearAllRecords() {
         if (confirm('確定要清除所有歷史紀錄嗎？')) {
-            allRecords = [];
-            saveAllRecords();
-            renderRecords();
+            dbRef.remove()
+                .then(() => {
+                    alert('所有紀錄已清除！');
+                })
+                .catch(error => {
+                    console.error("Error clearing data: ", error);
+                    alert('清除失敗，請檢查網路連線。');
+                });
         }
     }
 
@@ -506,7 +475,13 @@
     fuelCostPerLiterInput.addEventListener('input', calculateDaily);
     saveRecordBtn.addEventListener('click', saveDailyRecord);
     clearDataBtn.addEventListener('click', clearAllRecords);
-    searchInput.addEventListener('input', (e) => renderRecords(e.target.value));
+    searchInput.addEventListener('input', (e) => {
+        // Rerender with filtered data from the local cache
+        dbRef.once('value', (snapshot) => {
+            const data = snapshot.val();
+            renderRecords(data, e.target.value);
+        });
+    });
     
     quickSelectButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -537,8 +512,13 @@
         const today = new Date().toISOString().slice(0, 10);
         recordDateInput.value = today;
 
-        loadAllRecords();
-        renderRecords();
+        // Listen for data changes in Firebase
+        dbRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            // Data is received as an object, convert to array for rendering
+            const allRecords = data ? Object.values(data) : [];
+            renderRecords(allRecords);
+        });
     });
 </script>
 
