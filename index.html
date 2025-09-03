@@ -217,10 +217,10 @@
     </div>
 
     <div class="quick-select-buttons">
-        <button data-distance="60">桃園+台北+桃園 (60 公里)</button>
-        <button data-distance="185">桃+北+竹南+桃 (185 公里)</button>
-        <button data-distance="245">桃+北+竹南+北+桃 (245 公里)</button>
-        <button data-distance="165">桃+竹北+竹南+北 (165 公里)</button>
+        <button data-distance="60" data-name="桃園+台北+桃園">桃園+台北+桃園 (60 公里)</button>
+        <button data-distance="185" data-name="桃園+台北+竹南+桃園">桃+北+竹南+桃 (185 公里)</button>
+        <button data-distance="245" data-name="桃園+台北+竹南+台北+桃園">桃+北+竹南+北+桃 (245 公里)</button>
+        <button data-distance="165" data-name="桃園+竹北+竹南+台北">桃+竹北+竹南+北 (165 公里)</button>
     </div>
 
     <div class="input-group">
@@ -433,10 +433,13 @@
     totalMonthlyMileageInput.addEventListener('input', calculateMonthlySummary);
     fuelCostPerLiterInput.addEventListener('input', calculateMonthlySummary);
     
+    // Add new event listeners for quick select buttons
     quickSelectButtons.forEach(button => {
         button.addEventListener('click', () => {
             const distance = button.dataset.distance;
+            const name = button.dataset.name;
             dailyDistanceInput.value = distance;
+            recordNameInput.value = name;
             calculateDaily();
         });
     });
