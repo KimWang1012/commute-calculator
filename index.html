@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>通勤里程與油耗計算機</title>
+    <title>里程與油耗計算機</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,12 +12,12 @@
             margin: 0;
             padding: 20px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             min-height: 100vh;
         }
 
-        .container {
+        .container, .mileage-tracker {
             width: 100%;
             max-width: 500px;
             background: #fff;
@@ -25,13 +25,19 @@
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             border: 1px solid #e0e0e0;
+            margin-bottom: 25px;
         }
 
-        h1 {
+        h1, h2 {
             text-align: center;
             color: #1a1a1a;
             margin-bottom: 25px;
             font-size: 24px;
+        }
+        
+        .mileage-tracker h2 {
+            margin-bottom: 15px;
+            font-size: 22px;
         }
 
         .input-group {
@@ -89,10 +95,11 @@
             display: flex;
             justify-content: flex-end;
             margin-top: 20px;
+            gap: 10px;
         }
-
+        
         .buttons button {
-            background-color: #dc3545;
+            background-color: #007BFF;
             color: white;
             padding: 10px 18px;
             border: none;
@@ -101,9 +108,70 @@
             font-size: 16px;
             transition: background-color 0.3s;
         }
-        
-        .buttons button:hover {
+
+        .buttons button.clear-btn {
+            background-color: #dc3545;
+        }
+        .buttons button.clear-btn:hover {
             background-color: #c82333;
+        }
+        .buttons button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Historical Records Section */
+        .history-section {
+            margin-top: 40px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .history-section h2 {
+            text-align: center;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+        }
+        
+        #searchInput, #trackerSearchInput {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        #records-list, #tracker-records-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .record-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+        }
+        
+        .record-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .record-item p {
+            margin: 0;
+            line-height: 1.6;
+        }
+        .record-item .date {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
         }
     </style>
 </head>
@@ -132,8 +200,43 @@
     </div>
 
     <div class="buttons">
-        <button id="clearDataBtn">清除記錄</button>
+        <button id="saveRecordBtn">儲存紀錄</button>
+        <button id="clearDataBtn" class="clear-btn">清除所有記錄</button>
     </div>
+</div>
+
+<div class="history-section">
+    <h2>歷史紀錄</h2>
+    <input type="text" id="searchInput" placeholder="搜尋紀錄...">
+    <ul id="records-list">
+        <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
+    </ul>
+</div>
+
+<div class="mileage-tracker">
+    <h2>每月里程追蹤</h2>
+    <div class="input-group">
+        <label for="totalMonthlyMileage">每月總里程額度 (公里):</label>
+        <input type="number" id="totalMonthlyMileage" placeholder="例如: 500" min="0" step="1">
+    </div>
+    <div class="input-group">
+        <label for="usedMileage">已使用里程 (公里):</label>
+        <input type="number" id="usedMileage" placeholder="例如: 150" min="0" step="1">
+    </div>
+    <div class="result">
+        <p><strong>剩餘里程:</strong> <span id="remainingMileage">0</span> 公里</p>
+    </div>
+    <div class="buttons">
+        <button id="saveTrackerRecordBtn">儲存追蹤紀錄</button>
+    </div>
+</div>
+
+<div class="history-section">
+    <h2>里程追蹤歷史紀錄</h2>
+    <input type="text" id="trackerSearchInput" placeholder="搜尋追蹤紀錄...">
+    <ul id="tracker-records-list">
+        <p style="text-align: center; color: #888;">尚無追蹤紀錄。</p>
+    </ul>
 </div>
 
 <script>
@@ -141,29 +244,97 @@
     const workDaysPerWeekInput = document.getElementById('workDaysPerWeek');
     const fuelEfficiencyInput = document.getElementById('fuelEfficiency');
     const resultsDiv = document.getElementById('results');
+    const saveRecordBtn = document.getElementById('saveRecordBtn');
     const clearDataBtn = document.getElementById('clearDataBtn');
+    const searchInput = document.getElementById('searchInput');
+    const recordsList = document.getElementById('records-list');
+    
+    // New mileage tracker elements
+    const totalMonthlyMileageInput = document.getElementById('totalMonthlyMileage');
+    const usedMileageInput = document.getElementById('usedMileage');
+    const remainingMileageSpan = document.getElementById('remainingMileage');
+    const saveTrackerRecordBtn = document.getElementById('saveTrackerRecordBtn');
+    const trackerSearchInput = document.getElementById('trackerSearchInput');
+    const trackerRecordsList = document.getElementById('tracker-records-list');
 
-    // Save data to localStorage
-    function saveData() {
-        localStorage.setItem('oneWayDistance', oneWayDistanceInput.value);
-        localStorage.setItem('workDaysPerWeek', workDaysPerWeekInput.value);
-        localStorage.setItem('fuelEfficiency', fuelEfficiencyInput.value);
+    let historyRecords = [];
+    let trackerRecords = []; // New array for mileage tracker records
+
+    // Save history records to localStorage
+    function saveHistory() {
+        localStorage.setItem('commuteRecords', JSON.stringify(historyRecords));
+    }
+    
+    function saveTrackerHistory() {
+        localStorage.setItem('mileageTrackerRecords', JSON.stringify(trackerRecords));
     }
 
-    // Load data from localStorage
-    function loadData() {
-        const distance = localStorage.getItem('oneWayDistance');
-        const workDays = localStorage.getItem('workDaysPerWeek');
-        const efficiency = localStorage.getItem('fuelEfficiency');
+    // Load history records from localStorage
+    function loadHistory() {
+        const storedRecords = localStorage.getItem('commuteRecords');
+        if (storedRecords) {
+            historyRecords = JSON.parse(storedRecords);
+        }
+        const storedTrackerRecords = localStorage.getItem('mileageTrackerRecords');
+        if (storedTrackerRecords) {
+            trackerRecords = JSON.parse(storedTrackerRecords);
+        }
+    }
 
-        if (distance) oneWayDistanceInput.value = distance;
-        if (workDays) workDaysPerWeekInput.value = workDays;
-        if (efficiency) fuelEfficiencyInput.value = efficiency;
+    // Render records to the page
+    function renderRecords(query = '') {
+        const filteredRecords = historyRecords.filter(record => 
+            JSON.stringify(record).toLowerCase().includes(query.toLowerCase())
+        );
+
+        recordsList.innerHTML = '';
+        if (filteredRecords.length === 0) {
+            recordsList.innerHTML = `<p style="text-align: center; color: #888;">${query ? '找不到符合的紀錄。' : '尚無歷史紀錄。'}</p>`;
+            return;
+        }
+
+        filteredRecords.forEach(record => {
+            const listItem = document.createElement('li');
+            listItem.className = 'record-item';
+            listItem.innerHTML = `
+                <p class="date">${record.date}</p>
+                <p><strong>單趟里程:</strong> ${record.oneWayDistance} 公里</p>
+                <p><strong>每週天數:</strong> ${record.workDaysPerWeek} 天</p>
+                <p><strong>油耗:</strong> ${record.fuelEfficiency} 公里/公升</p>
+                <hr>
+                <p><strong>每月里程:</strong> ${record.monthlyDistance} 公里</p>
+                <p><strong>每月油耗:</strong> ${record.monthlyFuel} 公升</p>
+            `;
+            recordsList.appendChild(listItem);
+        });
+    }
+    
+    // New function to render mileage tracker records
+    function renderTrackerRecords(query = '') {
+        const filteredRecords = trackerRecords.filter(record => 
+            JSON.stringify(record).toLowerCase().includes(query.toLowerCase())
+        );
         
-        calculate();
+        trackerRecordsList.innerHTML = '';
+        if (filteredRecords.length === 0) {
+            trackerRecordsList.innerHTML = `<p style="text-align: center; color: #888;">${query ? '找不到符合的紀錄。' : '尚無追蹤紀錄。'}</p>`;
+            return;
+        }
+
+        filteredRecords.forEach(record => {
+            const listItem = document.createElement('li');
+            listItem.className = 'record-item';
+            listItem.innerHTML = `
+                <p class="date">${record.date}</p>
+                <p><strong>總里程額度:</strong> ${record.totalMileage} 公里</p>
+                <p><strong>已使用里程:</strong> ${record.usedMileage} 公里</p>
+                <p><strong>剩餘里程:</strong> ${record.remainingMileage} 公里</p>
+            `;
+            trackerRecordsList.appendChild(listItem);
+        });
     }
 
-    // Calculate and display results
+    // Calculate and display commute results
     function calculate() {
         const distance = parseFloat(oneWayDistanceInput.value);
         const workDays = parseFloat(workDaysPerWeekInput.value);
@@ -171,7 +342,6 @@
 
         if (isNaN(distance) || isNaN(workDays) || isNaN(efficiency) || distance <= 0 || workDays <= 0 || efficiency <= 0) {
             resultsDiv.innerHTML = "<p>請輸入有效的正數。</p>";
-            saveData(); // Still save current (invalid) values to persist user input
             return;
         }
 
@@ -193,28 +363,112 @@
             <p><strong>每週油耗:</strong> ${weeklyFuel.toFixed(2)} 公升</p>
             <p><strong>每月油耗:</strong> ${monthlyFuel.toFixed(2)} 公升</p>
         `;
-
-        saveData(); // Auto-save after each calculation
+    }
+    
+    // New function to calculate remaining mileage
+    function calculateRemainingMileage() {
+        const total = parseFloat(totalMonthlyMileageInput.value) || 0;
+        const used = parseFloat(usedMileageInput.value) || 0;
+        const remaining = total - used;
+        
+        remainingMileageSpan.textContent = remaining.toFixed(2);
     }
 
-    // Clear all stored data
-    function clearData() {
-        localStorage.clear();
-        oneWayDistanceInput.value = '';
-        workDaysPerWeekInput.value = '';
-        fuelEfficiencyInput.value = '';
-        resultsDiv.innerHTML = "<p>請輸入您的通勤資訊，系統會自動計算。</p>";
-        // No need to call calculate() here, as input event listeners will handle it
+    // Save the current calculation as a new record
+    function saveCurrentRecord() {
+        const distance = parseFloat(oneWayDistanceInput.value);
+        const workDays = parseFloat(workDaysPerWeekInput.value);
+        const efficiency = parseFloat(fuelEfficiencyInput.value);
+
+        if (isNaN(distance) || isNaN(workDays) || isNaN(efficiency) || distance <= 0 || workDays <= 0 || efficiency <= 0) {
+            alert('請先輸入有效的通勤資訊再儲存！');
+            return;
+        }
+
+        const monthlyDistance = (distance * 2 * workDays * 4.33).toFixed(2);
+        const monthlyFuel = ((distance * 2 * workDays * 4.33) / efficiency).toFixed(2);
+
+        const newRecord = {
+            date: new Date().toLocaleString(),
+            oneWayDistance: distance,
+            workDaysPerWeek: workDays,
+            fuelEfficiency: efficiency,
+            monthlyDistance: monthlyDistance,
+            monthlyFuel: monthlyFuel
+        };
+
+        historyRecords.unshift(newRecord); // Add to the beginning of the array
+        saveHistory();
+        renderRecords();
+        alert('紀錄已儲存！');
+    }
+    
+    // New function to save mileage tracker record
+    function saveTrackerRecord() {
+        const total = parseFloat(totalMonthlyMileageInput.value);
+        const used = parseFloat(usedMileageInput.value);
+        const remaining = parseFloat(remainingMileageSpan.textContent);
+        
+        if (isNaN(total) || isNaN(used) || total < 0 || used < 0) {
+            alert('請輸入有效的里程資訊再儲存！');
+            return;
+        }
+        
+        const newRecord = {
+            date: new Date().toLocaleString(),
+            totalMileage: total,
+            usedMileage: used,
+            remainingMileage: remaining
+        };
+        
+        trackerRecords.unshift(newRecord);
+        saveTrackerHistory();
+        renderTrackerRecords();
+        alert('里程追蹤紀錄已儲存！');
+    }
+
+    // Clear all records
+    function clearAllRecords() {
+        if (confirm('確定要清除所有歷史紀錄嗎？')) {
+            historyRecords = [];
+            trackerRecords = []; // Also clear tracker records
+            saveHistory();
+            saveTrackerHistory();
+            renderRecords();
+            renderTrackerRecords();
+            oneWayDistanceInput.value = '';
+            workDaysPerWeekInput.value = '';
+            fuelEfficiencyInput.value = '';
+            totalMonthlyMileageInput.value = '';
+            usedMileageInput.value = '';
+            calculate();
+            calculateRemainingMileage();
+        }
     }
 
     // Event listeners
     oneWayDistanceInput.addEventListener('input', calculate);
     workDaysPerWeekInput.addEventListener('input', calculate);
     fuelEfficiencyInput.addEventListener('input', calculate);
-    clearDataBtn.addEventListener('click', clearData);
+    saveRecordBtn.addEventListener('click', saveCurrentRecord);
+    clearDataBtn.addEventListener('click', clearAllRecords);
+    searchInput.addEventListener('input', (e) => renderRecords(e.target.value));
+    
+    // New event listeners for mileage tracker
+    totalMonthlyMileageInput.addEventListener('input', calculateRemainingMileage);
+    usedMileageInput.addEventListener('input', calculateRemainingMileage);
+    saveTrackerRecordBtn.addEventListener('click', saveTrackerRecord);
+    trackerSearchInput.addEventListener('input', (e) => renderTrackerRecords(e.target.value));
+
 
     // Initial load
-    window.addEventListener('load', loadData);
+    window.addEventListener('load', () => {
+        loadHistory();
+        renderRecords();
+        renderTrackerRecords(); // Render new records on load
+        calculate();
+        calculateRemainingMileage();
+    });
 </script>
 
 </body>
