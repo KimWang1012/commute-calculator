@@ -120,7 +120,7 @@
             background-color: #e2e8ec;
         }
 
-        .result {
+        .result, .summary {
             background-color: #eaf6ff;
             border-left: 5px solid #007BFF;
             padding: 20px;
@@ -128,20 +128,28 @@
             border-radius: 8px;
         }
         
-        .result h2 {
+        .result h2, .summary h2 {
             margin-top: 0;
             color: #0056b3;
             font-size: 20px;
             margin-bottom: 15px;
         }
+
+        .summary {
+            background-color: #e6f7e6;
+            border-left-color: #28a745;
+        }
+        .summary h2 {
+            color: #218838;
+        }
         
-        .result p {
+        .result p, .summary p {
             margin: 0 0 10px 0;
             line-height: 1.5;
             font-size: 16px;
         }
 
-        .result p strong {
+        .result p strong, .summary p strong {
             color: #333;
         }
 
@@ -300,6 +308,12 @@
     <div class="container">
         <div class="history-section">
             <h2>所有紀錄</h2>
+            <div class="summary">
+                <h2>本月總結</h2>
+                <p><strong>本月總里程:</strong> <span id="monthlyTotalDistance">0</span> 公里</p>
+                <p><strong>本月總油耗:</strong> <span id="monthlyTotalFuel">0</span> 公升</p>
+                <p><strong>本月總油錢:</strong> <span id="monthlyTotalCost">0</span> 新台幣</p>
+            </div>
             <input type="text" id="searchInput" placeholder="搜尋日期或名稱 (例如: 2025-09-03 或 出差)...">
             <ul id="records-list">
                 <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
@@ -316,7 +330,7 @@
     const recordNameInput = document.getElementById('recordName');
     const dailyDistanceInput = document.getElementById('dailyDistance');
     const fuelEfficiencyInput = document.getElementById('fuelEfficiency');
-    const fuelCostPerLiterInput = document.getElementById('fuelCostPerLiter'); // New input
+    const fuelCostPerLiterInput = document.getElementById('fuelCostPerLiter');
     const resultsDiv = document.getElementById('results');
     const saveRecordBtn = document.getElementById('saveRecordBtn');
     const clearDataBtn = document.getElementById('clearDataBtn');
@@ -326,6 +340,11 @@
     const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
     const tabNavItems = document.querySelectorAll('.tab-nav-item');
     const pageContents = document.querySelectorAll('.page-content');
+    
+    // New elements for monthly summary
+    const monthlyTotalDistanceSpan = document.getElementById('monthlyTotalDistance');
+    const monthlyTotalFuelSpan = document.getElementById('monthlyTotalFuel');
+    const monthlyTotalCostSpan = document.getElementById('monthlyTotalCost');
 
     let allRecords = [];
 
@@ -342,7 +361,7 @@
         }
     }
     
-    // Calculate and display results
+    // Calculate and display daily results
     function calculateDaily() {
         const distance = parseFloat(dailyDistanceInput.value);
         const efficiency = parseFloat(fuelEfficiencyInput.value);
@@ -354,7 +373,7 @@
         }
         
         const dailyFuel = distance / efficiency;
-        const dailyCost = dailyFuel * fuelCost;
+        const dailyCost = dailyFuel * (isNaN(fuelCost) ? 0 : fuelCost);
 
         resultsDiv.innerHTML = `
             <h2>本日計算結果</h2>
@@ -362,6 +381,27 @@
             <p><strong>本日油錢:</strong> ${dailyCost.toFixed(2)} 新台幣</p>
         `;
     }
+
+    // Calculate and display monthly summary
+    function calculateMonthlySummary() {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const monthlyRecords = allRecords.filter(record => record.date.startsWith(currentMonth));
+        
+        let totalDistance = 0;
+        let totalFuel = 0;
+        let totalCost = 0;
+        
+        monthlyRecords.forEach(record => {
+            totalDistance += record.dailyDistance;
+            totalFuel += record.dailyDistance / record.fuelEfficiency;
+            totalCost += (record.dailyDistance / record.fuelEfficiency) * record.fuelCostPerLiter;
+        });
+
+        monthlyTotalDistanceSpan.textContent = totalDistance.toFixed(2);
+        monthlyTotalFuelSpan.textContent = totalFuel.toFixed(2);
+        monthlyTotalCostSpan.textContent = totalCost.toFixed(2);
+    }
+
 
     // Render records to the page
     function renderRecords(query = '') {
@@ -374,6 +414,7 @@
         recordsList.innerHTML = '';
         if (filteredRecords.length === 0) {
             recordsList.innerHTML = `<p style="text-align: center; color: #888;">${query ? '找不到符合的紀錄。' : '尚無歷史紀錄。'}</p>`;
+            calculateMonthlySummary(); // Recalculate if no records found
             return;
         }
 
@@ -395,6 +436,8 @@
             `;
             recordsList.appendChild(listItem);
         });
+
+        calculateMonthlySummary(); // Recalculate after rendering
     }
 
     // Save the current calculation as a new record
