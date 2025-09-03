@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通勤里程與油耗計算機</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        .result {
+            background-color: #eaf6ff;
+            border-left: 5px solid #007BFF;
+            padding: 20px;
+            margin-top: 25px;
+            border-radius: 8px;
+        }
+
+        .result h2 {
+            margin-top: 0;
+            color: #0056b3;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .result p {
+            margin: 0 0 10px 0;
+            line-height: 1.5;
+            font-size: 16px;
+        }
+
+        .result p strong {
+            color: #333;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .buttons button {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .buttons button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>通勤里程與油耗計算機</h1>
+
+    <div class="input-group">
+        <label for="oneWayDistance">單趟通勤里程 (公里):</label>
+        <input type="number" id="oneWayDistance" placeholder="例如: 15" min="0" step="0.1">
+    </div>
+
+    <div class="input-group">
+        <label for="workDaysPerWeek">每週工作天數:</label>
+        <input type="number" id="workDaysPerWeek" placeholder="例如: 5" min="0" step="1">
+    </div>
+
+    <div class="input-group">
+        <label for="fuelEfficiency">車輛油耗 (公里/公升):</label>
+        <input type="number" id="fuelEfficiency" placeholder="例如: 12" min="0" step="0.1">
+    </div>
+
+    <div class="result" id="results">
+        <p>請輸入您的通勤資訊，系統會自動計算。</p>
+    </div>
+
+    <div class="buttons">
+        <button id="clearDataBtn">清除記錄</button>
+    </div>
+</div>
+
+<script>
+    const oneWayDistanceInput = document.getElementById('oneWayDistance');
+    const workDaysPerWeekInput = document.getElementById('workDaysPerWeek');
+    const fuelEfficiencyInput = document.getElementById('fuelEfficiency');
+    const resultsDiv = document.getElementById('results');
+    const clearDataBtn = document.getElementById('clearDataBtn');
+
+    // Save data to localStorage
+    function saveData() {
+        localStorage.setItem('oneWayDistance', oneWayDistanceInput.value);
+        localStorage.setItem('workDaysPerWeek', workDaysPerWeekInput.value);
+        localStorage.setItem('fuelEfficiency', fuelEfficiencyInput.value);
+    }
+
+    // Load data from localStorage
+    function loadData() {
+        const distance = localStorage.getItem('oneWayDistance');
+        const workDays = localStorage.getItem('workDaysPerWeek');
+        const efficiency = localStorage.getItem('fuelEfficiency');
+
+        if (distance) oneWayDistanceInput.value = distance;
+        if (workDays) workDaysPerWeekInput.value = workDays;
+        if (efficiency) fuelEfficiencyInput.value = efficiency;
+        
+        calculate();
+    }
+
+    // Calculate and display results
+    function calculate() {
+        const distance = parseFloat(oneWayDistanceInput.value);
+        const workDays = parseFloat(workDaysPerWeekInput.value);
+        const efficiency = parseFloat(fuelEfficiencyInput.value);
+
+        if (isNaN(distance) || isNaN(workDays) || isNaN(efficiency) || distance <= 0 || workDays <= 0 || efficiency <= 0) {
+            resultsDiv.innerHTML = "<p>請輸入有效的正數。</p>";
+            saveData(); // Still save current (invalid) values to persist user input
+            return;
+        }
+
+        const dailyDistance = distance * 2;
+        const weeklyDistance = dailyDistance * workDays;
+        const monthlyDistance = weeklyDistance * 4.33; // Approx. avg weeks per month
+
+        const dailyFuel = dailyDistance / efficiency;
+        const weeklyFuel = weeklyDistance / efficiency;
+        const monthlyFuel = monthlyDistance / efficiency;
+
+        resultsDiv.innerHTML = `
+            <h2>計算結果</h2>
+            <p><strong>每日通勤里程:</strong> ${dailyDistance.toFixed(2)} 公里</p>
+            <p><strong>每週通勤里程:</strong> ${weeklyDistance.toFixed(2)} 公里</p>
+            <p><strong>每月通勤里程:</strong> ${monthlyDistance.toFixed(2)} 公里</p>
+            <hr>
+            <p><strong>每日油耗:</strong> ${dailyFuel.toFixed(2)} 公升</p>
+            <p><strong>每週油耗:</strong> ${weeklyFuel.toFixed(2)} 公升</p>
+            <p><strong>每月油耗:</strong> ${monthlyFuel.toFixed(2)} 公升</p>
+        `;
+
+        saveData(); // Auto-save after each calculation
+    }
+
+    // Clear all stored data
+    function clearData() {
+        localStorage.clear();
+        oneWayDistanceInput.value = '';
+        workDaysPerWeekInput.value = '';
+        fuelEfficiencyInput.value = '';
+        resultsDiv.innerHTML = "<p>請輸入您的通勤資訊，系統會自動計算。</p>";
+        // No need to call calculate() here, as input event listeners will handle it
+    }
+
+    // Event listeners
+    oneWayDistanceInput.addEventListener('input', calculate);
+    workDaysPerWeekInput.addEventListener('input', calculate);
+    fuelEfficiencyInput.addEventListener('input', calculate);
+    clearDataBtn.addEventListener('click', clearData);
+
+    // Initial load
+    window.addEventListener('load', loadData);
+</script>
+
+</body>
+</html>
