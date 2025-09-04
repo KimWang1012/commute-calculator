@@ -1,96 +1,536 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>里程與油耗追蹤器</title>
-  <style>
-    /* 你的原本 CSS 保留 */
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>里程與油耗追蹤器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+            margin-bottom: 25px;
+        }
+
+        /* ----- Tab Navigation ----- */
+        .tab-nav {
+            display: flex;
+            width: 100%;
+            max-width: 500px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .tab-nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #6c757d;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .tab-nav-item.active {
+            background-color: #007BFF;
+            color: #fff;
+        }
+
+        /* ----- Page Content ----- */
+        .page-content {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+        }
+        .page-content.active {
+            display: block;
+        }
+        
+        h1, h2 {
+            text-align: center;
+            color: #1a1a1a;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        .quick-select-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .quick-select-buttons button {
+            flex: 1 1 calc(50% - 10px);
+            padding: 10px 5px;
+            background-color: #f0f4f7;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .quick-select-buttons button:hover {
+            background-color: #e2e8ec;
+        }
+
+        .result {
+            background-color: #eaf6ff;
+            border-left: 5px solid #007BFF;
+            padding: 20px;
+            margin-top: 25px;
+            border-radius: 8px;
+        }
+        
+        .result h2 {
+            margin-top: 0;
+            color: #0056b3;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .result p {
+            margin: 0 0 10px 0;
+            line-height: 1.5;
+            font-size: 16px;
+        }
+
+        .result p strong {
+            color: #333;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        
+        .buttons button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .buttons button.clear-btn {
+            background-color: #dc3545;
+        }
+        .buttons button.clear-btn:hover {
+            background-color: #c82333;
+        }
+        .buttons button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Historical Records Section */
+        .history-section {
+            margin-top: 40px;
+            width: 100%;
+        }
+        
+        #searchInput {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        #records-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .record-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+            position: relative;
+        }
+        
+        .record-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .record-item p {
+            margin: 0;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+        .record-item .date {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            text-align: center;
+            padding: 0;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
 </head>
 <body>
 
 <div class="tab-nav">
-  <div class="tab-nav-item active" data-page="daily">每日記錄</div>
-  <div class="tab-nav-item" data-page="history">所有紀錄</div>
+    <div class="tab-nav-item active" data-page="daily">每日記錄</div>
+    <div class="tab-nav-item" data-page="history">所有紀錄</div>
 </div>
 
-<!-- Daily & History container (省略, 跟你原來一樣) -->
+<div id="page-daily" class="page-content active">
+    <div class="container">
+        <h1>每日里程與油耗記錄</h1>
+
+        <div class="input-group">
+            <label for="recordDate">日期:</label>
+            <input type="date" id="recordDate">
+        </div>
+
+        <div class="input-group">
+            <label for="recordName">紀錄名稱 (選填):</label>
+            <input type="text" id="recordName" placeholder="例如: 出差、週末出遊">
+        </div>
+
+        <div class="quick-select-buttons">
+            <button data-distance="60" data-name="桃園+台北+桃園">桃+北+桃 (60 公里)</button>
+            <button data-distance="185" data-name="桃園+台北+竹南+桃園">桃+北+竹南+桃 (185 公里)</button>
+            <button data-distance="245" data-name="桃園+台北+竹南+台北+桃園">桃+北+竹南+北+桃 (245 公里)</button>
+            <button data-distance="165" data-name="桃園+竹北+竹南+台北">桃+竹北+竹南+北 (165 公里)</button>
+        </div>
+
+        <div class="input-group">
+            <label for="dailyDistance">本日里程 (公里):</label>
+            <input type="number" id="dailyDistance" placeholder="請選擇或手動輸入" min="0" step="0.1">
+        </div>
+        
+        <div class="input-group">
+            <label for="fuelEfficiency">車輛油耗 (公里/公升):</label>
+            <input type="number" id="fuelEfficiency" placeholder="例如: 12" min="0" step="0.1">
+        </div>
+
+        <div class="input-group">
+            <label for="fuelCostPerLiter">每公升油價 (新台幣):</label>
+            <input type="number" id="fuelCostPerLiter" placeholder="例如: 30.5" min="0" step="0.1">
+        </div>
+
+        <div class="result" id="results">
+            <p>請輸入您的里程與油耗資訊，系統會自動計算。</p>
+        </div>
+
+        <div class="buttons">
+            <button id="saveRecordBtn">儲存紀錄</button>
+        </div>
+    </div>
+</div>
+
+<div id="page-history" class="page-content">
+    <div class="container">
+        <div class="history-section">
+            <h2>所有紀錄</h2>
+            <input type="text" id="searchInput" placeholder="搜尋日期或名稱 (例如: 2025-09-03 或 出差)...">
+            <ul id="records-list">
+                <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
+            </ul>
+        </div>
+        <div class="buttons" style="justify-content: center;">
+            <button id="clearDataBtn" class="clear-btn">清除所有記錄</button>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  const recordDateInput = document.getElementById('recordDate');
-  const recordNameInput = document.getElementById('recordName');
-  const dailyDistanceInput = document.getElementById('dailyDistance');
-  const fuelEfficiencyInput = document.getElementById('fuelEfficiency');
-  const fuelCostPerLiterInput = document.getElementById('fuelCostPerLiter');
-  const resultsDiv = document.getElementById('results');
-  const saveRecordBtn = document.getElementById('saveRecordBtn');
-  const clearDataBtn = document.getElementById('clearDataBtn');
-  const searchInput = document.getElementById('searchInput');
-  const recordsList = document.getElementById('records-list');
+    const recordDateInput = document.getElementById('recordDate');
+    const recordNameInput = document.getElementById('recordName');
+    const dailyDistanceInput = document.getElementById('dailyDistance');
+    const fuelEfficiencyInput = document.getElementById('fuelEfficiency');
+    const fuelCostPerLiterInput = document.getElementById('fuelCostPerLiter');
+    const resultsDiv = document.getElementById('results');
+    const saveRecordBtn = document.getElementById('saveRecordBtn');
+    const clearDataBtn = document.getElementById('clearDataBtn');
+    const searchInput = document.getElementById('searchInput');
+    const recordsList = document.getElementById('records-list');
+    
+    const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
+    const tabNavItems = document.querySelectorAll('.tab-nav-item');
+    const pageContents = document.querySelectorAll('.page-content');
+    
+    // 定義資料庫欄位名稱，確保與 Supabase 表格完全一致
+    const TABLE_NAME = 'records';
+    const COLUMN_NAMES = {
+        DATE: 'date',
+        NAME: 'name',
+        DAILY_DISTANCE: 'daily_distance',
+        FUEL_EFFICIENCY: 'fuel_efficiency',
+        FUEL_COST_PER_LITER: 'fuel_cost_per_liter'
+    };
 
-  const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
-  const tabNavItems = document.querySelectorAll('.tab-nav-item');
-  const pageContents = document.querySelectorAll('.page-content');
-  
-  const TABLE_NAME = 'records';
-  const COLUMN_NAMES = {
-    DATE: 'date',
-    NAME: 'name',
-    DAILY_DISTANCE: 'daily_distance',
-    FUEL_EFFICIENCY: 'fuel_efficiency',
-    FUEL_COST_PER_LITER: 'fuel_cost_per_liter'
-  };
+    // 這裡貼上你從 Supabase 取得的設定程式碼
+    const SUPABASE_URL = 'https://emaluilcmlfzysgaxrsi.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWx1aWxjbWxmenlzZ2F4cnNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5MTE2MDMsImV4cCI6MjA3MjQ4NzYwM30.WDIW1GzwEtwvn53qlymxlZmPHQiNWZraKFbwnPkoyV4';
+    
+    // 這裡才創建 Supabase client，確保程式庫已載入
+    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // 🔑 你的 Supabase 設定
-  const SUPABASE_URL = 'https://emaluilcmlfzysgaxrsi.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWx1aWxjbWxmenlzZ2F4cnNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5MTE2MDMsImV4cCI6MjA3MjQ4NzYwM30.WDIW1GzwEtwvn53qlymxlZmPHQiNWZraKFbwnPkoyV4';
+    // Calculate and display daily results
+    function calculateDaily() {
+        const distance = parseFloat(dailyDistanceInput.value);
+        const efficiency = parseFloat(fuelEfficiencyInput.value);
+        const fuelCost = parseFloat(fuelCostPerLiterInput.value);
 
-  // ✅ 檢查工具
-  function checkSupabaseKeys() {
-    function hasInvalidChars(str) {
-      for (let i = 0; i < str.length; i++) {
-        if (str.charCodeAt(i) > 255) return true;
-      }
-      return false;
+        if (isNaN(distance) || isNaN(efficiency) || distance <= 0 || efficiency <= 0) {
+            resultsDiv.innerHTML = "<p>請輸入有效的正數。</p>";
+            return;
+        }
+        
+        const dailyFuel = distance / efficiency;
+        const dailyCost = dailyFuel * (isNaN(fuelCost) ? 0 : fuelCost);
+
+        resultsDiv.innerHTML = `
+            <h2>本日計算結果</h2>
+            <p><strong>本日油耗:</strong> ${dailyFuel.toFixed(2)} 公升</p>
+            <p><strong>本日油錢:</strong> ${dailyCost.toFixed(2)} 新台幣</p>
+        `;
     }
-    console.log("🔍 檢查 Supabase 設定...");
 
-    if (!SUPABASE_URL.startsWith("https://") || !SUPABASE_URL.includes(".supabase.co")) {
-      console.error("❌ SUPABASE_URL 格式錯誤:", SUPABASE_URL);
-    } else {
-      console.log("✅ SUPABASE_URL 格式正常");
+    // Fetch and render records from Supabase
+    async function fetchAndRenderRecords(query = '') {
+        const { data: records, error } = await supabase
+            .from(TABLE_NAME)
+            .select('*');
+        
+        if (error) {
+            console.error('Error fetching data:', error);
+            recordsList.innerHTML = `<p style="text-align: center; color: #dc3545;">載入資料失敗，請檢查 Supabase 設定。</p>`;
+            return;
+        }
+
+        const lowerCaseQuery = query.toLowerCase();
+        const filteredRecords = records.filter(record => 
+            (record[COLUMN_NAMES.DATE] && record[COLUMN_NAMES.DATE].toLowerCase().includes(lowerCaseQuery)) ||
+            (record[COLUMN_NAMES.NAME] && record[COLUMN_NAMES.NAME].toLowerCase().includes(lowerCaseQuery))
+        );
+
+        recordsList.innerHTML = '';
+        if (filteredRecords.length === 0) {
+            recordsList.innerHTML = `<p style="text-align: center; color: #888;">${query ? '找不到符合的紀錄。' : '尚無歷史紀錄。'}</p>`;
+            return;
+        }
+
+        filteredRecords.sort((a, b) => new Date(b[COLUMN_NAMES.DATE]) - new Date(a[COLUMN_NAMES.DATE]));
+
+        filteredRecords.forEach(record => {
+            const listItem = document.createElement('li');
+            listItem.className = 'record-item';
+            const dailyFuel = (record[COLUMN_NAMES.DAILY_DISTANCE] / record[COLUMN_NAMES.FUEL_EFFICIENCY]).toFixed(2);
+            const dailyCost = (dailyFuel * record[COLUMN_NAMES.FUEL_COST_PER_LITER]).toFixed(2);
+            listItem.innerHTML = `
+                <p class="date"><strong>日期:</strong> ${record[COLUMN_NAMES.DATE]}</p>
+                <p><strong>名稱:</strong> ${record[COLUMN_NAMES.NAME] || '無'}</p>
+                <p><strong>本日里程:</strong> ${record[COLUMN_NAMES.DAILY_DISTANCE]} 公里</p>
+                <p><strong>車輛油耗:</strong> ${record[COLUMN_NAMES.FUEL_EFFICIENCY]} 公里/公升</p>
+                <p><strong>本日油耗:</strong> ${dailyFuel} 公升</p>
+                <p><strong>本日油錢:</strong> ${dailyCost} 新台幣</p>
+                <button class="delete-btn" data-date="${record[COLUMN_NAMES.DATE]}">×</button>
+            `;
+            recordsList.appendChild(listItem);
+        });
     }
 
-    if (SUPABASE_URL.endsWith("/")) {
-      console.warn("⚠️ SUPABASE_URL 不要以 / 結尾:", SUPABASE_URL);
+    // Save a new record to Supabase
+    async function saveDailyRecord() {
+        const date = recordDateInput.value;
+        const name = recordNameInput.value.trim();
+        const daily_distance = parseFloat(dailyDistanceInput.value);
+        const fuel_efficiency = parseFloat(fuelEfficiencyInput.value);
+        const fuel_cost_per_liter = parseFloat(fuelCostPerLiterInput.value);
+
+        if (!date || isNaN(daily_distance) || isNaN(fuel_efficiency) || isNaN(fuel_cost_per_liter) || daily_distance <= 0 || fuel_efficiency <= 0) {
+            alert('請輸入有效的日期、里程、油耗與油價資訊！');
+            return;
+        }
+        
+        const { data, error } = await supabase
+            .from(TABLE_NAME)
+            .insert([{ 
+                [COLUMN_NAMES.DATE]: date,
+                [COLUMN_NAMES.NAME]: name,
+                [COLUMN_NAMES.DAILY_DISTANCE]: daily_distance,
+                [COLUMN_NAMES.FUEL_EFFICIENCY]: fuel_efficiency,
+                [COLUMN_NAMES.FUEL_COST_PER_LITER]: fuel_cost_per_liter
+            }]);
+
+        if (error) {
+            console.error("Error saving data: ", error);
+            alert('儲存失敗，請檢查 Supabase 設定。');
+        } else {
+            alert('紀錄已儲存！');
+            fetchAndRenderRecords();
+        }
+    }
+    
+    // Delete a single record from Supabase
+    async function deleteSingleRecord(date) {
+        if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
+            const { error } = await supabase
+                .from(TABLE_NAME)
+                .delete()
+                .eq(COLUMN_NAMES.DATE, date);
+
+            if (error) {
+                console.error("Error removing data: ", error);
+                alert('刪除失敗，請檢查 Supabase 設定。');
+            } else {
+                alert('紀錄已刪除！');
+                fetchAndRenderRecords();
+            }
+        }
     }
 
-    if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.length < 30) {
-      console.error("❌ SUPABASE_ANON_KEY 太短或不存在:", SUPABASE_ANON_KEY);
-    } else if (SUPABASE_ANON_KEY.includes("\n") || SUPABASE_ANON_KEY.includes("\r") || hasInvalidChars(SUPABASE_ANON_KEY)) {
-      console.error("❌ SUPABASE_ANON_KEY 含有換行或非法字元");
-    } else {
-      console.log("✅ SUPABASE_ANON_KEY 格式正常");
+    // Clear all records from Supabase
+    async function clearAllRecords() {
+        if (confirm('確定要清除所有歷史紀錄嗎？')) {
+            const { error } = await supabase
+                .from(TABLE_NAME)
+                .delete()
+                .not(COLUMN_NAMES.DATE, 'is', null);
+
+            if (error) {
+                console.error("Error clearing data: ", error);
+                alert('清除失敗，請檢查 Supabase 設定。');
+            } else {
+                alert('所有紀錄已清除！');
+                fetchAndRenderRecords();
+            }
+        }
     }
-  }
 
-  checkSupabaseKeys();
+    // New function to handle page switching
+    function showPage(pageId) {
+        pageContents.forEach(page => {
+            page.classList.remove('active');
+        });
+        document.getElementById(pageId).classList.add('active');
 
-  // 🔥 正確初始化 Supabase client
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        tabNavItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`.tab-nav-item[data-page="${pageId.split('-')[1]}"]`).classList.add('active');
+    }
 
-  /* 你的 calculateDaily / fetchAndRenderRecords / saveDailyRecord 等函數保持不變 */
-  
-  // ... (略, 保留你原本的功能實作)
+    // Event listeners
+    dailyDistanceInput.addEventListener('input', calculateDaily);
+    fuelEfficiencyInput.addEventListener('input', calculateDaily);
+    fuelCostPerLiterInput.addEventListener('input', calculateDaily);
+    saveRecordBtn.addEventListener('click', saveDailyRecord);
+    clearDataBtn.addEventListener('click', clearAllRecords);
+    searchInput.addEventListener('input', (e) => fetchAndRenderRecords(e.target.value));
+    
+    quickSelectButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const distance = button.dataset.distance;
+            const name = button.dataset.name;
+            dailyDistanceInput.value = distance;
+            recordNameInput.value = name;
+            calculateDaily();
+        });
+    });
 
-  window.addEventListener('load', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    recordDateInput.value = today;
-    fetchAndRenderRecords();
-  });
+    tabNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+                showPage('page-' + item.dataset.page);
+            });
+        });
+    
+    // Event delegation for dynamically added delete buttons
+    recordsList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-btn')) {
+            const date = e.target.dataset.date;
+            deleteSingleRecord(date);
+        }
+    });
+
+    // Initial load
+    window.addEventListener('load', () => {
+        const today = new Date().toISOString().slice(0, 10);
+        recordDateInput.value = today;
+        fetchAndRenderRecords();
+    });
 </script>
 
 </body>
