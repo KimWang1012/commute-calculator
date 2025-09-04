@@ -317,12 +317,14 @@
     // 這裡貼上你從 Supabase 取得的設定程式碼
     const SUPABASE_URL = 'https://emaluilcmlfzysgaxrsi.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWx1aWxjbWxmenlzZ2F4cnNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5MTE2MDMsImV4cCI6MjA3MjQ4NzYwM30.WDIW1GzwEtwvn53qlymxlZmPHQiNWZraKFbwnPkoyV4';
+    
+    // 這裡才創建 Supabase client，確保程式庫已載入
+    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // ... 其他 JavaScript 程式碼
 </script>
 
 <script>
-    // 在這裡才創建 Supabase client，確保程式庫已載入
-    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
     const recordDateInput = document.getElementById('recordDate');
     const recordNameInput = document.getElementById('recordName');
     const dailyDistanceInput = document.getElementById('dailyDistance');
