@@ -431,4 +431,66 @@
     async function deleteSingleRecord(date) {
         if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
             alert('在這個版本中，單筆刪除功能是暫時停用的。\n請前往 Google 表格手動刪除紀錄。');
-            fetch
+            fetchAndRenderRecords(searchInput.value);
+        }
+    }
+
+    // Clear all records (Note: Google Sheets API doesn't have a simple CLEAR ALL)
+    async function clearAllRecords() {
+        if (confirm('確定要清除所有歷史紀錄嗎？')) {
+            alert('這個版本無法透過網頁清除所有紀錄。\n請前往 Google 表格手動刪除所有紀錄。');
+            fetchAndRenderRecords(searchInput.value);
+        }
+    }
+
+    dailyDistanceInput.addEventListener('input', calculateDaily);
+    fuelEfficiencyInput.addEventListener('input', calculateDaily);
+    fuelCostPerLiterInput.addEventListener('input', calculateDaily);
+    saveRecordBtn.addEventListener('click', saveDailyRecord);
+    clearDataBtn.addEventListener('click', clearAllRecords);
+    searchInput.addEventListener('input', (e) => fetchAndRenderRecords(e.target.value));
+    
+    quickSelectButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const distance = button.dataset.distance;
+            const name = button.dataset.name;
+            dailyDistanceInput.value = distance;
+            recordNameInput.value = name;
+            calculateDaily();
+        });
+    });
+
+    tabNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+                showPage('page-' + item.dataset.page);
+            });
+        });
+    
+    recordsList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-btn')) {
+            const date = e.target.dataset.date;
+            deleteSingleRecord(date);
+        }
+    });
+
+    function showPage(pageId) {
+        pageContents.forEach(page => {
+            page.classList.remove('active');
+        });
+        document.getElementById(pageId).classList.add('active');
+
+        tabNavItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`.tab-nav-item[data-page="${pageId.split('-')[1]}"]`).classList.add('active');
+    }
+
+    window.addEventListener('load', () => {
+        const today = new Date().toISOString().slice(0, 10);
+        recordDateInput.value = today;
+        fetchAndRenderRecords();
+    });
+</script>
+
+</body>
+</html>
