@@ -340,15 +340,15 @@
     const pageContents = document.querySelectorAll('.page-content');
     
     // ↓↓↓ 請將這裡的網址替換成您自己的 Google Apps Script 網路應用程式網址 ↓↓↓
-    const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbz7kS397WD1-nvCElPNczLkBzipKp0_A8Gwq_IW6dHGdPoeIaySY-s1ZPUWgVeHqBmr/exec';
+    const GOOGLE_SHEETS_API_URL = 'YOUR_GOOGLE_SHEETS_API_URL_HERE';
     // ↑↑↑ 請將這裡的網址替換成您自己的 Google Apps Script 網路應用程式網址 ↑↑↑
 
     /**
-     * [已修正] 檢查 API 網址是否已設定。如果未設定，會顯示錯誤訊息並回傳 false。
+     * [已修正] 檢查 API 網址是否仍為預設的佔位符。
      * @returns {boolean} - 如果網址已設定則回傳 true，否則回傳 false。
      */
     function isApiUrlConfigured() {
-        if (GOOGLE_SHEETS_API_URL === 'https://script.google.com/macros/s/AKfycbz7kS397WD1-nvCElPNczLkBzipKp0_A8Gwq_IW6dHGdPoeIaySY-s1ZPUWgVeHqBmr/exec' || !GOOGLE_SHEETS_API_URL) {
+        if (GOOGLE_SHEETS_API_URL === 'YOUR_GOOGLE_SHEETS_API_URL_HERE' || !GOOGLE_SHEETS_API_URL) {
             return false;
         }
         return true;
