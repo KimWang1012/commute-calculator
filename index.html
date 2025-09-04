@@ -310,23 +310,14 @@
         </div>
     </div>
 </div>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script>
-  // 這裡貼上你從 Firebase 取得的設定程式碼
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-  };
 
-  // 初始化 Firebase
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const dbRef = db.ref('records');
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    // 這裡貼上你從 Supabase 取得的設定程式碼
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 </script>
 
 <script>
@@ -345,8 +336,6 @@
     const tabNavItems = document.querySelectorAll('.tab-nav-item');
     const pageContents = document.querySelectorAll('.page-content');
 
-    // 移除本地儲存的變數，改為直接與 Firebase 互動
-    
     // Calculate and display daily results
     function calculateDaily() {
         const distance = parseFloat(dailyDistanceInput.value);
@@ -368,11 +357,20 @@
         `;
     }
 
-    // Render records to the page
-    function renderRecords(records, query = '') {
-        const allRecords = records.length > 0 ? Object.values(records) : [];
+    // Fetch and render records from Supabase
+    async function fetchAndRenderRecords(query = '') {
+        const { data: records, error } = await supabase
+            .from('records')
+            .select('*');
+        
+        if (error) {
+            console.error('Error fetching data:', error);
+            recordsList.innerHTML = `<p style="text-align: center; color: #dc3545;">載入資料失敗，請檢查 Supabase 設定。</p>`;
+            return;
+        }
+
         const lowerCaseQuery = query.toLowerCase();
-        const filteredRecords = allRecords.filter(record => 
+        const filteredRecords = records.filter(record => 
             (record.date && record.date.toLowerCase().includes(lowerCaseQuery)) ||
             (record.name && record.name.toLowerCase().includes(lowerCaseQuery))
         );
@@ -388,13 +386,13 @@
         filteredRecords.forEach(record => {
             const listItem = document.createElement('li');
             listItem.className = 'record-item';
-            const dailyFuel = (record.dailyDistance / record.fuelEfficiency).toFixed(2);
-            const dailyCost = (dailyFuel * record.fuelCostPerLiter).toFixed(2);
+            const dailyFuel = (record.daily_distance / record.fuel_efficiency).toFixed(2);
+            const dailyCost = (dailyFuel * record.fuel_cost_per_liter).toFixed(2);
             listItem.innerHTML = `
                 <p class="date"><strong>日期:</strong> ${record.date}</p>
                 <p><strong>名稱:</strong> ${record.name || '無'}</p>
-                <p><strong>本日里程:</strong> ${record.dailyDistance} 公里</p>
-                <p><strong>車輛油耗:</strong> ${record.fuelEfficiency} 公里/公升</p>
+                <p><strong>本日里程:</strong> ${record.daily_distance} 公里</p>
+                <p><strong>車輛油耗:</strong> ${record.fuel_efficiency} 公里/公升</p>
                 <p><strong>本日油耗:</strong> ${dailyFuel} 公升</p>
                 <p><strong>本日油錢:</strong> ${dailyCost} 新台幣</p>
                 <button class="delete-btn" data-date="${record.date}">×</button>
@@ -403,56 +401,68 @@
         });
     }
 
-    // Save the current calculation as a new record to Firebase
-    function saveDailyRecord() {
+    // Save a new record to Supabase
+    async function saveDailyRecord() {
         const date = recordDateInput.value;
         const name = recordNameInput.value.trim();
-        const distance = parseFloat(dailyDistanceInput.value);
-        const efficiency = parseFloat(fuelEfficiencyInput.value);
-        const fuelCost = parseFloat(fuelCostPerLiterInput.value);
+        const daily_distance = parseFloat(dailyDistanceInput.value);
+        const fuel_efficiency = parseFloat(fuelEfficiencyInput.value);
+        const fuel_cost_per_liter = parseFloat(fuelCostPerLiterInput.value);
 
-        if (!date || isNaN(distance) || isNaN(efficiency) || isNaN(fuelCost) || distance <= 0 || efficiency <= 0) {
+        if (!date || isNaN(daily_distance) || isNaN(fuel_efficiency) || isNaN(fuel_cost_per_liter) || daily_distance <= 0 || fuel_efficiency <= 0) {
             alert('請輸入有效的日期、里程、油耗與油價資訊！');
             return;
         }
         
-        // Use the date as the unique key in Firebase
-        const recordData = { date, name, dailyDistance: distance, fuelEfficiency: efficiency, fuelCostPerLiter: fuelCost };
-        dbRef.child(date).set(recordData)
-            .then(() => {
-                alert('紀錄已儲存！');
-            })
-            .catch(error => {
-                console.error("Error writing data: ", error);
-                alert('儲存失敗，請檢查網路連線。');
-            });
+        // Supabase does not have a native "upsert" by date without a primary key.
+        // For simplicity, we'll just insert a new record each time.
+        // You can manually delete duplicates in the Supabase Table Editor if needed.
+        const { data, error } = await supabase
+            .from('records')
+            .insert([{ date, name, daily_distance, fuel_efficiency, fuel_cost_per_liter }]);
+
+        if (error) {
+            console.error("Error saving data: ", error);
+            alert('儲存失敗，請檢查 Supabase 設定。');
+        } else {
+            alert('紀錄已儲存！');
+            fetchAndRenderRecords();
+        }
     }
     
-    // Delete a single record from Firebase
-    function deleteSingleRecord(date) {
+    // Delete a single record from Supabase
+    async function deleteSingleRecord(date) {
         if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
-            dbRef.child(date).remove()
-                .then(() => {
-                    alert('紀錄已刪除！');
-                })
-                .catch(error => {
-                    console.error("Error removing data: ", error);
-                    alert('刪除失敗，請檢查網路連線。');
-                });
+            const { error } = await supabase
+                .from('records')
+                .delete()
+                .eq('date', date);
+
+            if (error) {
+                console.error("Error removing data: ", error);
+                alert('刪除失敗，請檢查 Supabase 設定。');
+            } else {
+                alert('紀錄已刪除！');
+                fetchAndRenderRecords();
+            }
         }
     }
 
-    // Clear all records from Firebase
-    function clearAllRecords() {
+    // Clear all records from Supabase
+    async function clearAllRecords() {
         if (confirm('確定要清除所有歷史紀錄嗎？')) {
-            dbRef.remove()
-                .then(() => {
-                    alert('所有紀錄已清除！');
-                })
-                .catch(error => {
-                    console.error("Error clearing data: ", error);
-                    alert('清除失敗，請檢查網路連線。');
-                });
+            const { error } = await supabase
+                .from('records')
+                .delete()
+                .not('date', 'is', null);
+
+            if (error) {
+                console.error("Error clearing data: ", error);
+                alert('清除失敗，請檢查 Supabase 設定。');
+            } else {
+                alert('所有紀錄已清除！');
+                fetchAndRenderRecords();
+            }
         }
     }
 
@@ -475,13 +485,7 @@
     fuelCostPerLiterInput.addEventListener('input', calculateDaily);
     saveRecordBtn.addEventListener('click', saveDailyRecord);
     clearDataBtn.addEventListener('click', clearAllRecords);
-    searchInput.addEventListener('input', (e) => {
-        // Rerender with filtered data from the local cache
-        dbRef.once('value', (snapshot) => {
-            const data = snapshot.val();
-            renderRecords(data, e.target.value);
-        });
-    });
+    searchInput.addEventListener('input', (e) => fetchAndRenderRecords(e.target.value));
     
     quickSelectButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -511,14 +515,7 @@
     window.addEventListener('load', () => {
         const today = new Date().toISOString().slice(0, 10);
         recordDateInput.value = today;
-
-        // Listen for data changes in Firebase
-        dbRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            // Data is received as an object, convert to array for rendering
-            const allRecords = data ? Object.values(data) : [];
-            renderRecords(allRecords);
-        });
+        fetchAndRenderRecords();
     });
 </script>
 
