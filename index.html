@@ -1,292 +1,185 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>里程與油耗追蹤器</title>
-    <style>
-        /* --- 保留你原本的 CSS --- */
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>通勤油耗計算器</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .hidden { display: none; }
+    .record-item { margin: 5px 0; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+    button { margin: 5px; }
+  </style>
 </head>
 <body>
+  <h1>🚗 通勤油耗計算器</h1>
 
-<div class="tab-nav">
-    <div class="tab-nav-item active" data-page="daily">每日記錄</div>
-    <div class="tab-nav-item" data-page="history">所有紀錄</div>
-</div>
+  <!-- 頁面切換 -->
+  <button onclick="showPage('daily')">每日記錄</button>
+  <button onclick="showPage('all')">所有紀錄</button>
 
-<div id="page-daily" class="page-content active">
-    <div class="container">
-        <h1>每日里程與油耗記錄</h1>
+  <!-- 每日記錄頁 -->
+  <div id="dailyPage">
+    <h2>每日記錄</h2>
+    <label>日期：<input type="date" id="recordDate"></label><br>
+    <label>名稱：<input type="text" id="recordName"></label><br>
+    <label>里程(km)：<input type="number" id="dailyDistance"></label><br>
+    <label>油耗(km/L)：<input type="number" id="fuelEfficiency"></label><br>
+    <label>油價(元/L)：<input type="number" id="fuelCostPerLiter"></label><br>
+    <button onclick="calculateDaily()">計算油耗</button>
+    <button onclick="saveDailyRecord()">儲存紀錄</button>
+    <div id="dailyResult"></div>
+  </div>
 
-        <div class="input-group">
-            <label for="recordDate">日期:</label>
-            <input type="date" id="recordDate">
-        </div>
+  <!-- 所有紀錄頁 -->
+  <div id="allPage" class="hidden">
+    <h2>所有紀錄</h2>
+    <input type="text" id="searchInput" placeholder="搜尋名稱或日期">
+    <button onclick="fetchAndRenderRecords()">搜尋</button>
+    <button onclick="clearAllRecords()">清除所有紀錄</button>
+    <div id="recordsList"></div>
+  </div>
 
-        <div class="input-group">
-            <label for="recordName">紀錄名稱 (選填):</label>
-            <input type="text" id="recordName" placeholder="例如: 出差、週末出遊">
-        </div>
+  <!-- 引入 Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Supabase 設定
+    const SUPABASE_URL = "https://你的專案id.supabase.co"; 
+    const SUPABASE_ANON_KEY = "你的anon key"; 
+    const TABLE_NAME = "fuel_records";
 
-        <div class="quick-select-buttons">
-            <button data-distance="60" data-name="桃園+台北+桃園">桃+北+桃 (60 公里)</button>
-            <button data-distance="185" data-name="桃園+台北+竹南+桃園">桃+北+竹南+桃 (185 公里)</button>
-            <button data-distance="245" data-name="桃園+台北+竹南+台北+桃園">桃+北+竹南+北+桃 (245 公里)</button>
-            <button data-distance="165" data-name="桃園+竹北+竹南+台北">桃+竹北+竹南+北 (165 公里)</button>
-        </div>
+    // 建立 client（注意小寫 supabase）
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        <div class="input-group">
-            <label for="dailyDistance">本日里程 (公里):</label>
-            <input type="number" id="dailyDistance" placeholder="請選擇或手動輸入" min="0" step="0.1">
-        </div>
-        
-        <div class="input-group">
-            <label for="fuelEfficiency">車輛油耗 (公里/公升):</label>
-            <input type="number" id="fuelEfficiency" placeholder="例如: 12" min="0" step="0.1">
-        </div>
-
-        <div class="input-group">
-            <label for="fuelCostPerLiter">每公升油價 (新台幣):</label>
-            <input type="number" id="fuelCostPerLiter" placeholder="例如: 30.5" min="0" step="0.1">
-        </div>
-
-        <div class="result" id="results">
-            <p>請輸入您的里程與油耗資訊，系統會自動計算。</p>
-        </div>
-
-        <div class="buttons">
-            <button id="saveRecordBtn">儲存紀錄</button>
-        </div>
-    </div>
-</div>
-
-<div id="page-history" class="page-content">
-    <div class="container">
-        <div class="history-section">
-            <h2>所有紀錄</h2>
-            <input type="text" id="searchInput" placeholder="搜尋日期或名稱 (例如: 2025-09-03 或 出差)...">
-            <ul id="records-list">
-                <p style="text-align: center; color: #888;">尚無歷史紀錄。</p>
-            </ul>
-        </div>
-        <div class="buttons" style="justify-content: center;">
-            <button id="clearDataBtn" class="clear-btn">清除所有記錄</button>
-        </div>
-    </div>
-</div>
-
-<!-- ✅ 先引入 Supabase JS v2 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-    const recordDateInput = document.getElementById('recordDate');
-    const recordNameInput = document.getElementById('recordName');
+    // DOM 元素
+    const dailyPage = document.getElementById('dailyPage');
+    const allPage = document.getElementById('allPage');
     const dailyDistanceInput = document.getElementById('dailyDistance');
     const fuelEfficiencyInput = document.getElementById('fuelEfficiency');
     const fuelCostPerLiterInput = document.getElementById('fuelCostPerLiter');
-    const resultsDiv = document.getElementById('results');
-    const saveRecordBtn = document.getElementById('saveRecordBtn');
-    const clearDataBtn = document.getElementById('clearDataBtn');
+    const dailyResult = document.getElementById('dailyResult');
+    const recordsList = document.getElementById('recordsList');
+    const recordDateInput = document.getElementById('recordDate');
+    const recordNameInput = document.getElementById('recordName');
     const searchInput = document.getElementById('searchInput');
-    const recordsList = document.getElementById('records-list');
-    
-    const quickSelectButtons = document.querySelectorAll('.quick-select-buttons button');
-    const tabNavItems = document.querySelectorAll('.tab-nav-item');
-    const pageContents = document.querySelectorAll('.page-content');
-    
-    const TABLE_NAME = 'records';
-    const COLUMN_NAMES = {
-        DATE: 'date',
-        NAME: 'name',
-        DAILY_DISTANCE: 'daily_distance',
-        FUEL_EFFICIENCY: 'fuel_efficiency',
-        FUEL_COST_PER_LITER: 'fuel_cost_per_liter'
-    };
 
-    const SUPABASE_URL = 'https://emaluilcmlfzysgaxrsi.supabase.co';
-    const SUPABASE_ANON_KEY = '你的 anon key';
-
-    // ✅ 正確建立 Supabase client
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // --- 計算 ---
-    function calculateDaily() {
-        const distance = parseFloat(dailyDistanceInput.value);
-        const efficiency = parseFloat(fuelEfficiencyInput.value);
-        const fuelCost = parseFloat(fuelCostPerLiterInput.value);
-
-        if (isNaN(distance) || isNaN(efficiency) || distance <= 0 || efficiency <= 0) {
-            resultsDiv.innerHTML = "<p>請輸入有效的正數。</p>";
-            return;
-        }
-        
-        const dailyFuel = distance / efficiency;
-        const dailyCost = dailyFuel * (isNaN(fuelCost) ? 0 : fuelCost);
-
-        resultsDiv.innerHTML = `
-            <h2>本日計算結果</h2>
-            <p><strong>本日油耗:</strong> ${dailyFuel.toFixed(2)} 公升</p>
-            <p><strong>本日油錢:</strong> ${dailyCost.toFixed(2)} 新台幣</p>
-        `;
-    }
-
-    // --- 讀取紀錄 ---
-    async function fetchAndRenderRecords(query = '') {
-        const { data: records, error } = await supabaseClient
-            .from(TABLE_NAME)
-            .select('*');
-        
-        if (error) {
-            console.error('Error fetching data:', error);
-            recordsList.innerHTML = `<p style="text-align: center; color: #dc3545;">載入資料失敗，請檢查 Supabase 設定。</p>`;
-            return;
-        }
-
-        const lowerCaseQuery = query.toLowerCase();
-        const filteredRecords = records.filter(record => 
-            (record[COLUMN_NAMES.DATE] && record[COLUMN_NAMES.DATE].toLowerCase().includes(lowerCaseQuery)) ||
-            (record[COLUMN_NAMES.NAME] && record[COLUMN_NAMES.NAME].toLowerCase().includes(lowerCaseQuery))
-        );
-
-        recordsList.innerHTML = '';
-        if (filteredRecords.length === 0) {
-            recordsList.innerHTML = `<p style="text-align: center; color: #888;">${query ? '找不到符合的紀錄。' : '尚無歷史紀錄。'}</p>`;
-            return;
-        }
-
-        filteredRecords.sort((a, b) => new Date(b[COLUMN_NAMES.DATE]) - new Date(a[COLUMN_NAMES.DATE]));
-
-        filteredRecords.forEach(record => {
-            const listItem = document.createElement('li');
-            listItem.className = 'record-item';
-            const dailyFuel = (record[COLUMN_NAMES.DAILY_DISTANCE] / record[COLUMN_NAMES.FUEL_EFFICIENCY]).toFixed(2);
-            const dailyCost = (dailyFuel * record[COLUMN_NAMES.FUEL_COST_PER_LITER]).toFixed(2);
-            listItem.innerHTML = `
-                <p class="date"><strong>日期:</strong> ${record[COLUMN_NAMES.DATE]}</p>
-                <p><strong>名稱:</strong> ${record[COLUMN_NAMES.NAME] || '無'}</p>
-                <p><strong>本日里程:</strong> ${record[COLUMN_NAMES.DAILY_DISTANCE]} 公里</p>
-                <p><strong>車輛油耗:</strong> ${record[COLUMN_NAMES.FUEL_EFFICIENCY]} 公里/公升</p>
-                <p><strong>本日油耗:</strong> ${dailyFuel} 公升</p>
-                <p><strong>本日油錢:</strong> ${dailyCost} 新台幣</p>
-                <button class="delete-btn" data-date="${record[COLUMN_NAMES.DATE]}">×</button>
-            `;
-            recordsList.appendChild(listItem);
-        });
-    }
-
-    // --- 儲存紀錄 ---
-    async function saveDailyRecord() {
-        const date = recordDateInput.value;
-        const name = recordNameInput.value.trim();
-        const daily_distance = parseFloat(dailyDistanceInput.value);
-        const fuel_efficiency = parseFloat(fuelEfficiencyInput.value);
-        const fuel_cost_per_liter = parseFloat(fuelCostPerLiterInput.value);
-
-        if (!date || isNaN(daily_distance) || isNaN(fuel_efficiency) || isNaN(fuel_cost_per_liter) || daily_distance <= 0 || fuel_efficiency <= 0) {
-            alert('請輸入有效的日期、里程、油耗與油價資訊！');
-            return;
-        }
-        
-        const { error } = await supabaseClient
-            .from(TABLE_NAME)
-            .insert([{ 
-                [COLUMN_NAMES.DATE]: date,
-                [COLUMN_NAMES.NAME]: name,
-                [COLUMN_NAMES.DAILY_DISTANCE]: daily_distance,
-                [COLUMN_NAMES.FUEL_EFFICIENCY]: fuel_efficiency,
-                [COLUMN_NAMES.FUEL_COST_PER_LITER]: fuel_cost_per_liter
-            }]);
-
-        if (error) {
-            console.error("Error saving data: ", error);
-            alert('儲存失敗，請檢查 Supabase 設定。');
-        } else {
-            alert('紀錄已儲存！');
-            fetchAndRenderRecords();
-        }
-    }
-
-    // --- 刪除紀錄 ---
-    async function deleteSingleRecord(date) {
-        if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
-            const { error } = await supabaseClient
-                .from(TABLE_NAME)
-                .delete()
-                .eq(COLUMN_NAMES.DATE, date);
-
-            if (error) {
-                console.error("Error removing data: ", error);
-                alert('刪除失敗，請檢查 Supabase 設定。');
-            } else {
-                alert('紀錄已刪除！');
-                fetchAndRenderRecords();
-            }
-        }
-    }
-
-    // --- 清除全部 ---
-    async function clearAllRecords() {
-        if (confirm('確定要清除所有歷史紀錄嗎？')) {
-            const { error } = await supabaseClient
-                .from(TABLE_NAME)
-                .delete()
-                .not(COLUMN_NAMES.DATE, 'is', null);
-
-            if (error) {
-                console.error("Error clearing data: ", error);
-                alert('清除失敗，請檢查 Supabase 設定。');
-            } else {
-                alert('所有紀錄已清除！');
-                fetchAndRenderRecords();
-            }
-        }
-    }
-
-    // --- 分頁切換 ---
-    function showPage(pageId) {
-        pageContents.forEach(page => page.classList.remove('active'));
-        document.getElementById(pageId).classList.add('active');
-        tabNavItems.forEach(item => item.classList.remove('active'));
-        document.querySelector(`.tab-nav-item[data-page="${pageId.split('-')[1]}"]`).classList.add('active');
-    }
-
-    // --- 事件監聽 ---
-    dailyDistanceInput.addEventListener('input', calculateDaily);
-    fuelEfficiencyInput.addEventListener('input', calculateDaily);
-    fuelCostPerLiterInput.addEventListener('input', calculateDaily);
-    saveRecordBtn.addEventListener('click', saveDailyRecord);
-    clearDataBtn.addEventListener('click', clearAllRecords);
-    searchInput.addEventListener('input', (e) => fetchAndRenderRecords(e.target.value));
-    
-    quickSelectButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const distance = button.dataset.distance;
-            const name = button.dataset.name;
-            dailyDistanceInput.value = distance;
-            recordNameInput.value = name;
-            calculateDaily();
-        });
-    });
-
-    tabNavItems.forEach(item => {
-        item.addEventListener('click', () => showPage('page-' + item.dataset.page));
-    });
-
-    recordsList.addEventListener('click', (e) => {
-        if (e.target.classList.contains('delete-btn')) {
-            const date = e.target.dataset.date;
-            deleteSingleRecord(date);
-        }
-    });
-
-    // --- 初始化 ---
-    window.addEventListener('load', () => {
-        const today = new Date().toISOString().slice(0, 10);
-        recordDateInput.value = today;
+    // 頁面切換
+    function showPage(page) {
+      if (page === 'daily') {
+        dailyPage.classList.remove('hidden');
+        allPage.classList.add('hidden');
+      } else {
+        dailyPage.classList.add('hidden');
+        allPage.classList.remove('hidden');
         fetchAndRenderRecords();
-    });
-</script>
+      }
+    }
 
+    // 計算油耗
+    function calculateDaily() {
+      const distance = parseFloat(dailyDistanceInput.value);
+      const efficiency = parseFloat(fuelEfficiencyInput.value);
+      const costPerLiter = parseFloat(fuelCostPerLiterInput.value);
+      if (!distance || !efficiency || !costPerLiter) {
+        alert('請輸入有效的數值');
+        return;
+      }
+      const fuelUsed = distance / efficiency;
+      const totalCost = fuelUsed * costPerLiter;
+      dailyResult.innerHTML = `耗油量：${fuelUsed.toFixed(2)} L<br>油錢：$${totalCost.toFixed(2)}`;
+    }
+
+    // 儲存紀錄
+    async function saveDailyRecord() {
+      const date = recordDateInput.value;
+      const distance = parseFloat(dailyDistanceInput.value);
+      const efficiency = parseFloat(fuelEfficiencyInput.value);
+      const costPerLiter = parseFloat(fuelCostPerLiterInput.value);
+      const name = recordNameInput.value.trim();
+      if (!date || !distance || !efficiency || !costPerLiter || !name) {
+        alert('請完整輸入所有欄位');
+        return;
+      }
+      const fuelUsed = distance / efficiency;
+      const totalCost = fuelUsed * costPerLiter;
+
+      const { error } = await supabaseClient
+        .from(TABLE_NAME)
+        .insert([{ date, distance, efficiency, costPerLiter, name, fuelUsed, totalCost }]);
+
+      if (error) {
+        console.error(error);
+        alert('儲存失敗');
+        return;
+      }
+      alert('已儲存紀錄');
+      recordNameInput.value = "";
+      dailyDistanceInput.value = "";
+      dailyResult.innerHTML = "";
+    }
+
+    // 取得紀錄
+    async function fetchAndRenderRecords(filterText = '') {
+      const { data, error } = await supabaseClient
+        .from(TABLE_NAME)
+        .select('*')
+        .order('date', { ascending: false });
+      if (error) {
+        console.error(error);
+        return;
+      }
+      const filtered = data.filter(r =>
+        r.name.includes(filterText) || r.date.includes(filterText)
+      );
+      recordsList.innerHTML = '';
+      filtered.forEach(record => {
+        const div = document.createElement('div');
+        div.className = 'record-item';
+        div.innerHTML = `
+          <strong>${record.date}</strong> - ${record.name} - ${record.distance} km,
+          ${record.fuelUsed.toFixed(2)} L, $${record.totalCost.toFixed(2)}
+          <button class="delete-btn" data-id="${record.id}">刪除</button>
+        `;
+        recordsList.appendChild(div);
+      });
+    }
+
+    // 刪除單筆
+    async function deleteSingleRecord(id) {
+      const { error } = await supabaseClient
+        .from(TABLE_NAME)
+        .delete()
+        .eq('id', id);
+      if (error) {
+        console.error(error);
+        return;
+      }
+      fetchAndRenderRecords();
+    }
+
+    // 綁定刪除事件
+    recordsList.addEventListener('click', e => {
+      if (e.target.classList.contains('delete-btn')) {
+        const id = e.target.dataset.id;
+        deleteSingleRecord(id);
+      }
+    });
+
+    // 清除所有紀錄
+    async function clearAllRecords() {
+      const { error } = await supabaseClient
+        .from(TABLE_NAME)
+        .delete()
+        .neq('id', 0);
+      if (error) {
+        console.error(error);
+        return;
+      }
+      fetchAndRenderRecords();
+    }
+
+    // 預設日期 = 今天
+    recordDateInput.valueAsDate = new Date();
+  </script>
 </body>
 </html>
