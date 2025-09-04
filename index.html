@@ -414,9 +414,6 @@
             return;
         }
         
-        // Supabase does not have a native "upsert" by date without a primary key.
-        // For simplicity, we'll just insert a new record each time.
-        // You can manually delete duplicates in the Supabase Table Editor if needed.
         const { data, error } = await supabase
             .from('records')
             .insert([{ date, name, daily_distance, fuel_efficiency, fuel_cost_per_liter }]);
