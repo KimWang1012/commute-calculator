@@ -334,6 +334,7 @@
     const tabNavItems = document.querySelectorAll('.tab-nav-item');
     const pageContents = document.querySelectorAll('.page-content');
     
+    // 請將 YOUR_GITHUB_PERSONAL_ACCESS_TOKEN 替換成你的金鑰
     const GITHUB_ACCESS_TOKEN = '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';
     const GITHUB_REPO_OWNER = 'KimWang1012';
     const GITHUB_REPO_NAME = 'commute-calculator';
@@ -354,9 +355,18 @@
         }
     }
 
+    // New safe encoding function
+    function toBase64(str) {
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) {
+                return String.fromCharCode('0x' + p1);
+        }));
+    }
+
     async function updateFileContent(newRecords, sha) {
         const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`;
-        const content = btoa(JSON.stringify(newRecords, null, 2));
+        // 使用修正後的編碼方式
+        const content = toBase64(JSON.stringify(newRecords, null, 2));
 
         const response = await fetch(url, {
             method: 'PUT',
@@ -426,6 +436,7 @@
         }
     }
     
+    // Calculate and display daily results
     function calculateDaily() {
         const distance = parseFloat(dailyDistanceInput.value);
         const efficiency = parseFloat(fuelEfficiencyInput.value);
@@ -446,6 +457,7 @@
         `;
     }
 
+    // Save a new record to GitHub
     async function saveDailyRecord() {
         const date = recordDateInput.value;
         const name = recordNameInput.value.trim();
@@ -484,6 +496,7 @@
         }
     }
 
+    // Delete a single record from GitHub
     async function deleteSingleRecord(date) {
         if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
             try {
@@ -502,6 +515,7 @@
         }
     }
 
+    // Clear all records from GitHub
     async function clearAllRecords() {
         if (confirm('確定要清除所有歷史紀錄嗎？')) {
             try {
@@ -516,6 +530,7 @@
         }
     }
 
+    // New function to handle page switching
     function showPage(pageId) {
         pageContents.forEach(page => {
             page.classList.remove('active');
@@ -528,37 +543,38 @@
         document.querySelector(`.tab-nav-item[data-page="${pageId.split('-')[1]}"]`).classList.add('active');
     }
 
-    dailyDistanceInput.addEventListener('input', calculateDaily);
-    fuelEfficiencyInput.addEventListener('input', calculateDaily);
-    fuelCostPerLiterInput.addEventListener('input', calculateDaily);
-    saveRecordBtn.addEventListener('click', saveDailyRecord);
-    clearDataBtn.addEventListener('click', clearAllRecords);
-    searchInput.addEventListener('input', (e) => fetchAndRenderRecords(e.target.value));
-    
-    quickSelectButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const distance = button.dataset.distance;
-            const name = button.dataset.name;
-            dailyDistanceInput.value = distance;
-            recordNameInput.value = name;
-            calculateDaily();
-        });
-    });
-
-    tabNavItems.forEach(item => {
-        item.addEventListener('click', () => {
-                showPage('page-' + item.dataset.page);
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        dailyDistanceInput.addEventListener('input', calculateDaily);
+        fuelEfficiencyInput.addEventListener('input', calculateDaily);
+        fuelCostPerLiterInput.addEventListener('input', calculateDaily);
+        saveRecordBtn.addEventListener('click', saveDailyRecord);
+        clearDataBtn.addEventListener('click', clearAllRecords);
+        searchInput.addEventListener('input', (e) => fetchAndRenderRecords(e.target.value));
+        
+        quickSelectButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const distance = button.dataset.distance;
+                const name = button.dataset.name;
+                dailyDistanceInput.value = distance;
+                recordNameInput.value = name;
+                calculateDaily();
             });
         });
-    
-    recordsList.addEventListener('click', (e) => {
-        if (e.target.classList.contains('delete-btn')) {
-            const date = e.target.dataset.date;
-            deleteSingleRecord(date);
-        }
-    });
 
-    window.addEventListener('load', () => {
+        tabNavItems.forEach(item => {
+            item.addEventListener('click', () => {
+                    showPage('page-' + item.dataset.page);
+                });
+            });
+        
+        recordsList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const date = e.target.dataset.date;
+                deleteSingleRecord(date);
+            }
+        });
+
         const today = new Date().toISOString().slice(0, 10);
         recordDateInput.value = today;
         fetchAndRenderRecords();
