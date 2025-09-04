@@ -334,7 +334,6 @@
     const tabNavItems = document.querySelectorAll('.tab-nav-item');
     const pageContents = document.querySelectorAll('.page-content');
     
-    // 請將 YOUR_GITHUB_PERSONAL_ACCESS_TOKEN 替換成你的金鑰
     const GITHUB_ACCESS_TOKEN = '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';
     const GITHUB_REPO_OWNER = 'KimWang1012';
     const GITHUB_REPO_NAME = 'commute-calculator';
@@ -356,4 +355,215 @@
     }
 
     async function updateFileContent(newRecords, sha) {
-        const url =
+        const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`;
+        const content = btoa(JSON.stringify(newRecords, null, 2));
+
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_ACCESS_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: 'Update records.json',
+                content,
+                sha
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.status}`);
+        }
+        return await response.json();
+    }
+
+    async function fetchAndRenderRecords(query = '') {
+        try {
+            const { content, sha } = await getFileContent();
+            let allRecords;
+            try {
+                allRecords = JSON.parse(content);
+            } catch (e) {
+                allRecords = [];
+            }
+            
+            const lowerCaseQuery = query.toLowerCase();
+            const filteredRecords = allRecords.filter(record => 
+                (record.date && record.date.toLowerCase().includes(lowerCaseQuery)) ||
+                (record.name && record.name.toLowerCase().includes(lowerCaseQuery)) ||
+                (record.recorder && record.recorder.toLowerCase().includes(lowerCaseQuery))
+            );
+
+            recordsList.innerHTML = '';
+            if (filteredRecords.length === 0) {
+                recordsList.innerHTML = `<p style="text-align: center; color: #888;">${query ? '找不到符合的紀錄。' : '尚無歷史紀錄。'}</p>`;
+                return;
+            }
+
+            filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            filteredRecords.forEach(record => {
+                const listItem = document.createElement('li');
+                listItem.className = 'record-item';
+                const dailyFuel = (record.dailyDistance / record.fuelEfficiency).toFixed(2);
+                const dailyCost = (dailyFuel * record.fuelCostPerLiter).toFixed(2);
+                listItem.innerHTML = `
+                    <p class="date"><strong>日期:</strong> ${record.date}</p>
+                    <p><strong>名稱:</strong> ${record.name || '無'}</p>
+                    <p><strong>記錄人:</strong> ${record.recorder || '無'}</p>
+                    <p><strong>本日里程:</strong> ${record.dailyDistance} 公里</p>
+                    <p><strong>車輛油耗:</strong> ${record.fuelEfficiency} 公里/公升</p>
+                    <p><strong>本日油耗:</strong> ${dailyFuel} 公升</p>
+                    <p><strong>本日油錢:</strong> ${dailyCost} 新台幣</p>
+                    <button class="delete-btn" data-date="${record.date}">×</button>
+                `;
+                recordsList.appendChild(listItem);
+            });
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            recordsList.innerHTML = `<p style="text-align: center; color: #dc3545;">載入資料失敗，請檢查金鑰或網路連線。</p>`;
+        }
+    }
+    
+    function calculateDaily() {
+        const distance = parseFloat(dailyDistanceInput.value);
+        const efficiency = parseFloat(fuelEfficiencyInput.value);
+        const fuelCost = parseFloat(fuelCostPerLiterInput.value);
+
+        if (isNaN(distance) || isNaN(efficiency) || distance <= 0 || efficiency <= 0) {
+            resultsDiv.innerHTML = "<p>請輸入有效的正數。</p>";
+            return;
+        }
+        
+        const dailyFuel = distance / efficiency;
+        const dailyCost = dailyFuel * (isNaN(fuelCost) ? 0 : fuelCost);
+
+        resultsDiv.innerHTML = `
+            <h2>本日計算結果</h2>
+            <p><strong>本日油耗:</strong> ${dailyFuel.toFixed(2)} 公升</p>
+            <p><strong>本日油錢:</strong> ${dailyCost.toFixed(2)} 新台幣</p>
+        `;
+    }
+
+    async function saveDailyRecord() {
+        const date = recordDateInput.value;
+        const name = recordNameInput.value.trim();
+        const recorder = recorderNameInput.value.trim();
+        const distance = parseFloat(dailyDistanceInput.value);
+        const efficiency = parseFloat(fuelEfficiencyInput.value);
+        const fuelCost = parseFloat(fuelCostPerLiterInput.value);
+
+        if (!date || isNaN(distance) || isNaN(efficiency) || isNaN(fuelCost) || distance <= 0 || efficiency <= 0) {
+            alert('請輸入有效的日期、里程、油耗與油價資訊！');
+            return;
+        }
+        
+        try {
+            const { content, sha } = await getFileContent();
+            let allRecords = JSON.parse(content);
+            
+            const newRecord = { date, name, recorder, dailyDistance: distance, fuelEfficiency: efficiency, fuelCostPerLiter: fuelCost };
+            
+            const existingRecordIndex = allRecords.findIndex(record => record.date === date);
+            if (existingRecordIndex !== -1) {
+                if (!confirm('該日期已有紀錄，確定要覆蓋嗎？')) {
+                    return;
+                }
+                allRecords[existingRecordIndex] = newRecord;
+            } else {
+                allRecords.push(newRecord);
+            }
+            
+            await updateFileContent(allRecords, sha);
+            alert('紀錄已儲存！');
+            fetchAndRenderRecords();
+        } catch (error) {
+            console.error("Error saving data: ", error);
+            alert('儲存失敗，請檢查金鑰或網路連線。');
+        }
+    }
+
+    async function deleteSingleRecord(date) {
+        if (confirm(`確定要刪除日期為 ${date} 的這筆紀錄嗎？`)) {
+            try {
+                const { content, sha } = await getFileContent();
+                let allRecords = JSON.parse(content);
+
+                allRecords = allRecords.filter(record => record.date !== date);
+
+                await updateFileContent(allRecords, sha);
+                alert('紀錄已刪除！');
+                fetchAndRenderRecords();
+            } catch (error) {
+                console.error("Error removing data: ", error);
+                alert('刪除失敗，請檢查金鑰或網路連線。');
+            }
+        }
+    }
+
+    async function clearAllRecords() {
+        if (confirm('確定要清除所有歷史紀錄嗎？')) {
+            try {
+                const { content, sha } = await getFileContent();
+                await updateFileContent([], sha);
+                alert('所有紀錄已清除！');
+                fetchAndRenderRecords();
+            } catch (error) {
+                console.error("Error clearing data: ", error);
+                alert('清除失敗，請檢查金鑰或網路連線。');
+            }
+        }
+    }
+
+    function showPage(pageId) {
+        pageContents.forEach(page => {
+            page.classList.remove('active');
+        });
+        document.getElementById(pageId).classList.add('active');
+
+        tabNavItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`.tab-nav-item[data-page="${pageId.split('-')[1]}"]`).classList.add('active');
+    }
+
+    dailyDistanceInput.addEventListener('input', calculateDaily);
+    fuelEfficiencyInput.addEventListener('input', calculateDaily);
+    fuelCostPerLiterInput.addEventListener('input', calculateDaily);
+    saveRecordBtn.addEventListener('click', saveDailyRecord);
+    clearDataBtn.addEventListener('click', clearAllRecords);
+    searchInput.addEventListener('input', (e) => fetchAndRenderRecords(e.target.value));
+    
+    quickSelectButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const distance = button.dataset.distance;
+            const name = button.dataset.name;
+            dailyDistanceInput.value = distance;
+            recordNameInput.value = name;
+            calculateDaily();
+        });
+    });
+
+    tabNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+                showPage('page-' + item.dataset.page);
+            });
+        });
+    
+    recordsList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-btn')) {
+            const date = e.target.dataset.date;
+            deleteSingleRecord(date);
+        }
+    });
+
+    window.addEventListener('load', () => {
+        const today = new Date().toISOString().slice(0, 10);
+        recordDateInput.value = today;
+        fetchAndRenderRecords();
+    });
+</script>
+
+</body>
+</html>
